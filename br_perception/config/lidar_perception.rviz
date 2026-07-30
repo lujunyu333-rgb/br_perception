@@ -1,0 +1,72 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    # ── 地面点云 (绿色) ──
+    - Class: rviz_default_plugins/PointCloud2
+      Name: "Ground"
+      Topic: /perception/lidar/ground
+      Style: Flat Squares
+      Size (m): 0.03
+      Color: 0; 180; 0
+      Enabled: true
+    # ── 非地面点云 (灰色) ──
+    - Class: rviz_default_plugins/PointCloud2
+      Name: "Non-Ground"
+      Topic: /perception/lidar/non_ground
+      Style: Flat Squares
+      Size (m): 0.03
+      Color: 160; 160; 160
+      Enabled: true
+    # ── 障碍物包围盒 ──
+    - Class: rviz_default_plugins/MarkerArray
+      Name: "Obstacles"
+      Topic: /perception/lidar/obstacles
+      Enabled: true
+    # ── 圆柱 ──
+    - Class: rviz_default_plugins/MarkerArray
+      Name: "Pillars"
+      Topic: /perception/lidar/pillars
+      Enabled: true
+    # ── 建筑位 ──
+    - Class: rviz_default_plugins/MarkerArray
+      Name: "Building Spots"
+      Topic: /perception/lidar/building_spots
+      Enabled: true
+    # ── 调试点云 (仅 debug_enabled=true 时) ──
+    - Class: rviz_default_plugins/PointCloud2
+      Name: "Debug Cloud"
+      Topic: /perception/lidar/debug_cloud
+      Style: Flat Squares
+      Size (m): 0.03
+      Enabled: false
+    # ── 原始点云 ──
+    - Class: rviz_default_plugins/PointCloud2
+      Name: "Raw LiDAR"
+      Topic: /livox/lidar/pointcloud
+      Style: Points
+      Size (m): 0.02
+      Color: 255; 255; 255
+      Enabled: true
+  Global Options:
+    Background Color: 30; 30; 30
+    Fixed Frame: livox_frame
+  Tools:
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/Measure
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 10
+      Focal Point:
+        X: 4
+        Y: 0
+        Z: 0.5
+      Pitch: 0.8
+      Yaw: 3.14

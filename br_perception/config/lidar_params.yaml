@@ -1,0 +1,88 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# 雷达感知管线参数 — ROBOCON 2027
+# 使用方式: ros2 launch br_perception lidar_perception.launch.py
+# ═══════════════════════════════════════════════════════════════════════════
+
+/**:
+  ros__parameters:
+
+    # ── 预处理 ──
+    leaf_size: 0.05                    # 体素降采样尺寸 (m)
+    enable_outlier_filter: true
+    outlier_mean_k: 10
+    outlier_std_thresh: 1.0
+    roi_min_x: -10.0                   # ROI 裁剪范围
+    roi_max_x: 30.0
+    roi_min_y: -10.0
+    roi_max_y: 10.0
+    roi_min_z: -0.5
+    roi_max_z: 2.0
+
+    # ── 地面分割 ──
+    ransac_dist_thresh: 0.04           # RANSAC 距离阈值 (m)
+    ransac_max_iters: 100
+    ransac_eps_angle: 0.45             # 法向量约束角 (rad)
+    enable_normal_constraint: true
+    normal_angle_threshold: 0.15       # 验证阈值 (rad)
+    l0_height: 0.0                     # 平台高度 L0/L1/L2 (m)
+    l1_height: 0.6
+    l2_height: 0.9
+    layer_tolerance: 0.15              # 分层容差 (m)
+
+    # ── 圆柱检测 ──
+    normal_k_search: 20                # 法向量 K 近邻
+    slice_thickness: 0.03              # 切片厚度 (m)
+    slice_min_points: 8
+    circle_fit_thresh: 0.02            # 2D 圆拟合距离阈值 (m)
+    radius_min: 0.08                   # 圆柱半径范围 (m)
+    radius_max: 0.20
+    merge_center_tol: 0.05             # 合并同心切片容差 (m)
+    merge_radius_tol: 0.03             # 合并半径容差 (m)
+    merge_min_slices: 3
+    min_cyl_height: 0.10               # 最小圆柱高度 (m)
+    cyl3d_dist_thresh: 0.025           # RANSAC 3D 距离阈值 (m)
+    cyl3d_max_iters: 200
+    cyl3d_normal_weight: 0.1
+    cyl3d_axis_eps: 0.35
+    mustika_h_min: 0.40                # Mustika 柱高度范围 (m)
+    mustika_h_max: 0.60
+    core_h_min: 0.70                   # Core 柱高度范围 (m)
+    core_h_max: 0.90
+
+    # ── 障碍物聚类 ──
+    cluster_tolerance: 0.05            # 欧式聚类距离阈值 (m)
+    min_cluster_size: 5
+    max_cluster_size: 5000
+    max_object_size: 2.0               # 过滤: 最大尺寸 (m)
+    max_object_height: 2.0             # 过滤: 最大高度 (m)
+    min_object_points: 5               # 过滤: 最小点数
+    floating_z_min: 0.8                # 过滤: 悬空物底部 Z (m)
+    size_tolerance: 0.08               # 分类尺寸容差 (m)
+    earth_cube_size: 0.35              # 地球方块尺寸 (m)
+    sky_cube_size: 0.20                # 天空方块尺寸 (m)
+    enemy_robot_size: 0.70             # 敌方机器人尺寸 (m)
+    mustika_size: 0.20                 # 穆斯蒂卡尺寸 (m)
+    elongation_ratio: 2.0
+    sphere_eigen_tol: 0.3
+
+    # ── 建筑位分析 ──
+    platform_z: 0.0                    # 平台表面 Z (m)
+    spot_half_size: 0.25               # 建筑位半宽 (500/2 mm)
+    column_z_min: 0.0                  # 柱状区 Z 下界偏移 (m)
+    column_z_max: 1.5                  # 柱状区 Z 上界偏移 (m)
+    min_points_threshold: 5             # 最小点数阈值 (独立组件用)
+    min_spot_points: 5                  # 最小点数阈值 (单体节点用)
+    top_surface_tolerance: 0.03        # 顶面 Z 容差 (m)
+    top_surface_min_points: 3          # 顶面最少点数
+    empty_max_height: 0.05             # EMPTY 高度上限 (m)
+    one_earth_min: 0.20                # ONE_EARTH 区间 (m)
+    one_earth_max: 0.45
+    two_earth_min: 0.55                # TWO_EARTH 区间 (m)
+    two_earth_max: 0.80
+    complete_tower_min: 0.80           # COMPLETE_TOWER 区间 (m)
+    complete_tower_max: 1.10
+
+    # ── 调试 & 看门狗 ──
+    debug_enabled: true                # 开启调试点云发布
+    watchdog_timeout: 1.0              # 雷达超时阈值 (秒)
+    max_skip_frames: 3                 # 最大连续跳帧数

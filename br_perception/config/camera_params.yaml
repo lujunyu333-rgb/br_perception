@@ -1,0 +1,132 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# 相机参数配置 — ROBOCON 2027
+# 硬件: 深圳康拓斯安全有限公司 技彩工业相机 ×2（前向 / 后向）
+# 使用方式: ros2 launch br_perception camera_perception.launch.py
+#
+# 说明:
+#   - 内参(intrinsics): 标定后填入实际值，当前为参考模板
+#   - 外参(extrinsics): 描述相机相对于雷达坐标系(或 base_link)的位姿变换
+#   - 曝光(exposure):  手动固定模式，避免自动曝光导致检测结果漂移
+#   - ROI:            仅处理场地相关区域以降低计算量
+# ═══════════════════════════════════════════════════════════════════════════
+
+/**:
+  ros__parameters:
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 前向相机 (camera_front)
+    # ═════════════════════════════════════════════════════════════════════════
+    camera_front:
+
+      # ── 内参（标定后填入实际值）──
+      intrinsics:
+        # 内参矩阵 K (3×3, 行主序)
+        # K = [fx,  0, cx,
+        #       0, fy, cy,
+        #       0,  0,  1]
+        camera_matrix: [800.0, 0.0, 640.0,   # fx, 0, cx
+                        0.0, 800.0, 360.0,   # 0, fy, cy
+                        0.0, 0.0, 1.0]       # 0,  0,  1
+
+        # 畸变模型: "plumb_bob" (radial-tangential) / "fisheye" / "rational_polynomial"
+        distortion_model: "plumb_bob"
+
+        # 畸变系数 [k1, k2, p1, p2, k3]（标定后填入）
+        distortion_coeffs: [0.0, 0.0, 0.0, 0.0, 0.0]
+
+      # ── 外参: 相机 → 雷达坐标系 (或 base_link) ──
+      # 变换顺序: R (旋转) 后 T (平移)
+      # 即 P_world = R * P_camera + T
+      extrinsics:
+        # 旋转矩阵 (3×3, 行主序)，当前为单位矩阵
+        rotation: [1.0, 0.0, 0.0,
+                   0.0, 1.0, 0.0,
+                   0.0, 0.0, 1.0]
+        # 平移向量 [x, y, z] (m)，相机光心在雷达坐标系下的坐标
+        translation: [0.15, 0.0, 0.35]
+
+        # 参考坐标系: "lidar" / "base_link"
+        parent_frame: "lidar"
+
+      # ── 图像参数 ──
+      resolution: [1280, 720]       # 像素 [width, height]
+      fps: 30.0                     # 帧率 (Hz)
+      pixel_format: "BGR8"          # 像素编码: "BGR8" / "RGB8" / "MONO8" / "YUV422"
+
+      # ── 曝光控制（手动固定，禁止自动曝光漂移）──
+      exposure_mode: "manual"       # "manual" / "auto" / "aperture_priority"
+      exposure_time: 5000           # 手动曝光时间 (μs)，室内场地质检值
+      gain: 0.0                     # 模拟增益 (dB)，0=无增益
+      auto_exposure_roi: [320, 180, 640, 360]  # 自动曝光测光区域 [x, y, w, h]，仅 auto 模式有效
+
+      # ── 白平衡 ──
+      white_balance_mode: "manual"  # "manual" / "auto" / "once"
+      white_balance_red: 1.5        # 红色通道增益
+      white_balance_blue: 1.5       # 蓝色通道增益
+
+      # ── ROI 裁剪（仅处理场地相关区域，降低检测计算量）──
+      # 坐标定义: [x, y, width, height]，原点为图像左上角
+      # 空列表 [] 表示不启用裁剪
+      roi: [0, 0, 1280, 720]
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 后向相机 (camera_rear) — 结构与前向相机完全对称
+    # ═════════════════════════════════════════════════════════════════════════
+    camera_rear:
+
+      # ── 内参（标定后填入实际值）──
+      intrinsics:
+        camera_matrix: [800.0, 0.0, 640.0,
+                        0.0, 800.0, 360.0,
+                        0.0, 0.0, 1.0]
+        distortion_model: "plumb_bob"
+        distortion_coeffs: [0.0, 0.0, 0.0, 0.0, 0.0]
+
+      # ── 外参: 后向相机 → 雷达坐标系 ──
+      extrinsics:
+        rotation: [-1.0, 0.0, 0.0,
+                    0.0, 1.0, 0.0,
+                    0.0, 0.0, -1.0]     # 后向: Y 轴不变，X/Z 反向
+        translation: [-0.15, 0.0, 0.35]
+        parent_frame: "lidar"
+
+      # ── 图像参数 ──
+      resolution: [1280, 720]
+      fps: 30.0
+      pixel_format: "BGR8"
+
+      # ── 曝光控制 ──
+      exposure_mode: "manual"
+      exposure_time: 5000
+      gain: 0.0
+      auto_exposure_roi: [320, 180, 640, 360]
+
+      # ── 白平衡 ──
+      white_balance_mode: "manual"
+      white_balance_red: 1.5
+      white_balance_blue: 1.5
+
+      # ── ROI 裁剪 ──
+      roi: [0, 0, 1280, 720]
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 神经网络推理参数
+    # ═════════════════════════════════════════════════════════════════════════
+    model_input_size: [640, 384]           # 网络输入分辨率 [width, height]
+    model_confidence_threshold: 0.5        # 检测置信度阈值 (低于此值的检测结果被丢弃)
+    model_nms_threshold: 0.45              # NMS IoU 阈值 (非极大值抑制)
+
+    # ── 模型文件路径 ──
+    model_path: ""                         # ONNX / TensorRT 模型路径，空字符串表示使用默认路径
+    model_backend: "onnxruntime"           # 推理后端: "onnxruntime" / "tensorrt" / "openvino"
+
+    # ── GPU 加速 ──
+    enable_cuda: true                      # 是否启用 CUDA 加速
+    cuda_device_id: 0                      # CUDA 设备序号
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 双目/多相机同步
+    # ═════════════════════════════════════════════════════════════════════════
+    enable_stereo: false                   # 是否启用双目立体匹配（当前为独立双单目）
+    camera_sync_tolerance_ms: 5.0          # 两相机时间戳同步容差 (ms)
+    use_hardware_trigger: true             # 是否使用硬件触发同步（工业相机通常支持）
