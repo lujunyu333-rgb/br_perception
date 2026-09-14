@@ -14,7 +14,6 @@
 /// ═══════════════════════════════════════════════════════════════════════════════
 
 #include <opencv2/core.hpp>
-#include <opencv2/core/parallel.hpp>
 #include <opencv2/imgproc.hpp>
 
 #include <string>

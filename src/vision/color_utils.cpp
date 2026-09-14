@@ -84,7 +84,7 @@ std::unordered_map<std::string, ColorThreshold> load_color_thresholds(
 
   for (auto it = root.begin(); it != root.end(); ++it)
   {
-    const std::string node_name = it.name();
+    const std::string node_name = (*it).name();
 
     // 跳过非颜色配置项 (标量值而非结构体)
     if (!(*it).isMap()) {

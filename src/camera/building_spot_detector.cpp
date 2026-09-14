@@ -682,11 +682,11 @@ rcl_interfaces::msg::SetParametersResult BuildingSpotDetector::on_parameter_chan
   for (const auto& param : params) {
     const std::string& name = param.get_name();
     try {
-           if (name == "morph_close_kernel")     morph_close_kernel_ = std::max(3, std::min(param.as_int(), 31));
-      else if (name == "morph_close_iters")      morph_close_iters_ = std::max(0, std::min(param.as_int(), 5));
+           if (name == "morph_close_kernel")     morph_close_kernel_ = std::max(3, std::min(static_cast<int>(param.as_int()), 31));
+      else if (name == "morph_close_iters")      morph_close_iters_ = std::max(0, std::min(static_cast<int>(param.as_int()), 5));
       else if (name == "approx_epsilon_factor")  approx_epsilon_factor_ = std::max(0.01, std::min(param.as_double(), 0.10));
-      else if (name == "contour_min_area")       contour_min_area_ = std::max(50, param.as_int());
-      else if (name == "contour_max_area")       contour_max_area_ = std::max(contour_min_area_ + 1, param.as_int());
+      else if (name == "contour_min_area")       contour_min_area_ = std::max(50, static_cast<int>(param.as_int()));
+      else if (name == "contour_max_area")       contour_max_area_ = std::max(contour_min_area_ + 1, static_cast<int>(param.as_int()));
       else if (name == "min_green_ratio")        min_green_ratio_ = std::max(0.2, std::min(param.as_double(), 1.0));
       else if (name == "min_convexity")          min_convexity_ = std::max(0.5, std::min(param.as_double(), 1.0));
       else if (name == "min_angle_score")        min_angle_score_ = std::max(0.3, std::min(param.as_double(), 1.0));

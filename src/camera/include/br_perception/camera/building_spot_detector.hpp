@@ -110,12 +110,14 @@ private:
                      BuildingSpotImageResult& result);
 
   /// @brief 验证内角 (均应在 80°-100° 附近，容忍 ±15°)
-  static bool validate_angles(const std::vector<cv::Point>& quad,
-                              float& angle_score);
+  /// @note 非 static: 需读取 min_angle_score_ 阈值 (可动态调参)
+  bool validate_angles(const std::vector<cv::Point>& quad,
+                       float& angle_score);
 
   /// @brief 验证对边平行度
-  static bool validate_opposite_sides(const std::vector<cv::Point>& quad,
-                                      float& side_score);
+  /// @note 非 static: 需读取 min_side_score_ 阈值 (可动态调参)
+  bool validate_opposite_sides(const std::vector<cv::Point>& quad,
+                               float& side_score);
 
   /// @brief 计算四边形内绿色像素占比
   static float compute_green_fill_ratio(const cv::Mat& mask,

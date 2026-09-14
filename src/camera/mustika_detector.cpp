@@ -271,7 +271,7 @@ void MustikaDetector::process_and_publish(
 // ═══════════════════════════════════════════════════════════════════════════════
 // 完整检测管线
 // ═══════════════════════════════════════════════════════════════════════════════
-MustikaDetector::MustikaImageResult
+MustikaImageResult
 MustikaDetector::detect(const cv::Mat& bgr, const std::string& cam_name)
 {
   MustikaImageResult result;

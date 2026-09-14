@@ -37,7 +37,6 @@
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>ament_index_python</exec_depend>
   <exec_depend>rviz2</exec_depend>
-  <exec_depend>tf2_ros</exec_depend>
 
   <member_of_group>rosidl_interface_packages</member_of_group>
 

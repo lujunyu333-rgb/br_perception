@@ -402,7 +402,7 @@ bool PillarDetector::validate_pillar(
   if (angle < 0.0f)   angle += 90.0f;
   const float deviation = std::abs(angle - 90.0f);
   // 0° 偏差 = 1.0, max_upright_angle_ 偏差 = 0.0
-  const float upright_score = 1.0f - std::min(deviation / max_upright_angle_, 1.0f);
+  const float upright_score = 1.0f - std::min(deviation / static_cast<float>(max_upright_angle_), 1.0f);
 
   // ── 3d. 轮廓面积 vs 包围盒面积 ──
   const double contour_area = cv::contourArea(contour);
@@ -435,7 +435,7 @@ bool PillarDetector::validate_pillar(
 // ═══════════════════════════════════════════════════════════════════════════════
 // 类型判定: 已在 detect() 中由颜色 mask 决定，这里做二次确认
 // ═══════════════════════════════════════════════════════════════════════════════
-PillarDetector::PillarImageResult::Type
+PillarImageResult::Type
 PillarDetector::classify_pillar(const cv::Mat& bgr, const cv::Rect& bbox)
 {
   // 在 bbox 内分别统计深绿色和棕色像素占比，选占比高的
@@ -559,12 +559,12 @@ rcl_interfaces::msg::SetParametersResult PillarDetector::on_parameter_change(
   for (const auto& p : params) {
     try {
       const std::string& n = p.get_name();
-           if (n == "morph_close_kernel")      morph_close_kernel_ = std::max(3, std::min(p.as_int(), 31));
-      else if (n == "morph_close_iters")       morph_close_iters_  = std::max(0, std::min(p.as_int(), 5));
+           if (n == "morph_close_kernel")      morph_close_kernel_ = std::max(3, std::min(static_cast<int>(p.as_int()), 31));
+      else if (n == "morph_close_iters")       morph_close_iters_  = std::max(0, std::min(static_cast<int>(p.as_int()), 5));
       else if (n == "min_aspect_ratio")        min_aspect_ratio_   = std::max(1.5, std::min(p.as_double(), 20.0));
       else if (n == "max_aspect_ratio")        max_aspect_ratio_   = std::max(min_aspect_ratio_+0.5, p.as_double());
-      else if (n == "contour_min_area")        contour_min_area_   = std::max(100, p.as_int());
-      else if (n == "contour_max_area")        contour_max_area_   = std::max(contour_min_area_+1, p.as_int());
+      else if (n == "contour_min_area")        contour_min_area_   = std::max(100, static_cast<int>(p.as_int()));
+      else if (n == "contour_max_area")        contour_max_area_   = std::max(contour_min_area_+1, static_cast<int>(p.as_int()));
       else if (n == "min_color_fill")          min_color_fill_     = std::max(0.2, std::min(p.as_double(), 1.0));
       else if (n == "max_upright_angle")       max_upright_angle_  = std::max(3.0, std::min(p.as_double(), 45.0));
       else if (n == "top_check_offset")        top_check_offset_   = std::max(0.05, std::min(p.as_double(), 0.40));
