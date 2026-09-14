@@ -19,9 +19,15 @@ __pycache__/
 # ── 本机工具配置 (名字里就写着 local) ──
 .claude/settings.local.json
 
-# ── 生成的仿真资产 (由 scripts/make_gazebo_world.py 可重新生成, 53MB) ──
-#   重新生成: python3 scripts/make_gazebo_world.py
-scripts/out/
+# ── 生成的仿真资产 ──
+#   gazebo/ 下的世界与模型定义 (约 35KB) **纳管** —— VM/CI 拉下来即可直接用,
+#   不必先跑生成器 (重新生成: python3 scripts/make_gazebo_world.py)
+scripts/out/*
+!scripts/out/gazebo/
+#   26MB 的 rc1_field_zup.stl 是旧 spec 的存档, 当前世界已不用它
+#   (make_gazebo_world.py 的 README 自述) → 两份副本共 53MB, 不入库
+scripts/out/gazebo/rc1_field_zup.stl
+scripts/out/gazebo/models/br_field/meshes/rc1_field_zup.stl
 
 # ── 测试数据 (ros2 bag 体积大, 不入库; 录法见 doc/容器化重构_任务清单) ──
 test/test_data/
