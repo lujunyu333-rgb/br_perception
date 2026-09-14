@@ -23,6 +23,9 @@ __pycache__/
 #   重新生成: python3 scripts/make_gazebo_world.py
 scripts/out/
 
+# ── 测试数据 (ros2 bag 体积大, 不入库; 录法见 doc/容器化重构_任务清单) ──
+test/test_data/
+
 # ── 系统杂物 ──
 .DS_Store
 Thumbs.db
