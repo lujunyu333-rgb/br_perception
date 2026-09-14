@@ -1,0 +1,932 @@
+[
+{
+"feature": "评论",
+"type": "CommentsFolder",
+"box": null,
+"subs": []
+},
+{
+"feature": "收藏",
+"type": "FavoriteFolder",
+"box": null,
+"subs": []
+},
+{
+"feature": "历史记录",
+"type": "HistoryFolder",
+"box": null,
+"subs": []
+},
+{
+"feature": "选择集",
+"type": "SelectionSetFolder",
+"box": null,
+"subs": []
+},
+{
+"feature": "传感器",
+"type": "SensorFolder",
+"box": null,
+"subs": []
+},
+{
+"feature": "设计活页夹",
+"type": "DocsFolder",
+"box": null,
+"subs": []
+},
+{
+"feature": "注解",
+"type": "DetailCabinet",
+"box": null,
+"subs": [
+{
+"type": "NotesAreaFtrFolder",
+"box": null
+}
+]
+},
+{
+"feature": "曲面实体",
+"type": "SurfaceBodyFolder",
+"box": null,
+"subs": []
+},
+{
+"feature": "实体",
+"type": "SolidBodyFolder",
+"box": null,
+"subs": []
+},
+{
+"feature": "光源与相机",
+"type": "EnvFolder",
+"box": null,
+"subs": [
+{
+"type": "AmbientLight",
+"box": null
+}
+]
+},
+{
+"feature": "标注",
+"type": "InkMarkupFolder",
+"box": null,
+"subs": [
+{
+"type": "InkMarkupView",
+"box": null
+}
+]
+},
+{
+"feature": "方程式",
+"type": "EqnFolder",
+"box": null,
+"subs": []
+},
+{
+"feature": "材质 <未指定>",
+"type": "MaterialFolder",
+"box": null,
+"subs": []
+},
+{
+"feature": "前视基准面",
+"type": "RefPlane",
+"box": [
+-0.55,
+-0.09,
+0.0,
+11.55,
+1.94,
+0.0
+],
+"subs": []
+},
+{
+"feature": "上视基准面",
+"type": "RefPlane",
+"box": [
+-0.55,
+0.0,
+-11.55,
+11.55,
+0.0,
+0.55
+],
+"subs": []
+},
+{
+"feature": "右视基准面",
+"type": "RefPlane",
+"box": [
+0.0,
+-0.09,
+-11.55,
+0.0,
+1.94,
+0.55
+],
+"subs": []
+},
+{
+"feature": "原点",
+"type": "OriginProfileFeature",
+"box": [
+0.0,
+0.0,
+0.0,
+0.0,
+0.0,
+0.0
+],
+"subs": []
+},
+{
+"feature": "草图1",
+"type": "ProfileFeature",
+"box": [
+0.0,
+0.0,
+-11.0,
+11.0,
+0.0,
+0.0
+],
+"subs": []
+},
+{
+"feature": "凸台-拉伸1",
+"type": "Extrusion",
+"box": [
+0.0,
+0.0,
+-11.0,
+11.0,
+0.2,
+0.0
+],
+"subs": [
+{
+"type": "ProfileFeature",
+"box": [
+0.0,
+0.0,
+-11.0,
+11.0,
+0.0,
+0.0
+]
+}
+]
+},
+{
+"feature": "草图2",
+"type": "ProfileFeature",
+"box": [
+0.02,
+0.15,
+-10.98,
+10.98,
+0.15,
+-0.02
+],
+"subs": []
+},
+{
+"feature": "草图3",
+"type": "ProfileFeature",
+"box": [
+4.9,
+0.0,
+-10.25,
+6.1,
+0.0,
+-0.65
+],
+"subs": []
+},
+{
+"feature": "草图7",
+"type": "ProfileFeature",
+"box": [
+2.5,
+0.0,
+-8.5,
+8.5,
+0.0,
+-2.5
+],
+"subs": []
+},
+{
+"feature": "凸台-拉伸4",
+"type": "ICE",
+"box": [
+1.5,
+0.15,
+-8.5,
+9.5,
+0.8,
+-2.5
+],
+"subs": [
+{
+"type": "ProfileFeature",
+"box": [
+2.5,
+0.0,
+-8.5,
+8.5,
+0.0,
+-2.5
+]
+}
+]
+},
+{
+"feature": "草图9",
+"type": "ProfileFeature",
+"box": [
+2.52,
+0.75,
+-8.48,
+8.48,
+0.75,
+-2.52
+],
+"subs": []
+},
+{
+"feature": "草图10",
+"type": "ProfileFeature",
+"box": [
+4.0,
+0.75,
+-7.0,
+7.0,
+0.75,
+-4.0
+],
+"subs": []
+},
+{
+"feature": "凸台-拉伸5",
+"type": "ICE",
+"box": [
+4.0,
+0.75,
+-7.0,
+7.0,
+1.05,
+-4.0
+],
+"subs": [
+{
+"type": "ProfileFeature",
+"box": [
+4.0,
+0.75,
+-7.0,
+7.0,
+0.75,
+-4.0
+]
+}
+]
+},
+{
+"feature": "草图11",
+"type": "ProfileFeature",
+"box": [
+5.37,
+1.05,
+-5.63,
+5.63,
+1.05,
+-5.37
+],
+"subs": []
+},
+{
+"feature": "凸台-拉伸6",
+"type": "ICE",
+"box": [
+5.37,
+1.05,
+-5.63,
+5.63,
+1.85,
+-5.37
+],
+"subs": [
+{
+"type": "ProfileFeature",
+"box": [
+5.37,
+1.05,
+-5.63,
+5.63,
+1.05,
+-5.37
+]
+}
+]
+},
+{
+"feature": "草图20",
+"type": "ProfileFeature",
+"box": [
+5.25,
+0.75,
+-8.48,
+5.75,
+0.75,
+-2.52
+],
+"subs": []
+},
+{
+"feature": "草图23",
+"type": "ProfileFeature",
+"box": [
+4.95,
+0.75,
+-8.48,
+6.05,
+0.75,
+-2.52
+],
+"subs": []
+},
+{
+"feature": "草图25",
+"type": "ProfileFeature",
+"box": [
+3.7,
+0.75,
+-5.88,
+7.3,
+0.75,
+-4.88
+],
+"subs": []
+},
+{
+"feature": "凸台-拉伸7",
+"type": "ICE",
+"box": [
+3.7,
+0.75,
+-5.88,
+7.3,
+0.9,
+-4.88
+],
+"subs": [
+{
+"type": "ProfileFeature",
+"box": [
+3.7,
+0.75,
+-5.88,
+7.3,
+0.75,
+-4.88
+]
+}
+]
+},
+{
+"feature": "草图27",
+"type": "ProfileFeature",
+"box": [
+3.15,
+0.75,
+-8.48,
+7.85,
+0.75,
+-7.78
+],
+"subs": []
+},
+{
+"feature": "草图28",
+"type": "ProfileFeature",
+"box": [
+5.36,
+0.15,
+-9.88,
+5.63,
+0.15,
+-9.62
+],
+"subs": []
+},
+{
+"feature": "凸台-拉伸8",
+"type": "ICE",
+"box": [
+5.36,
+0.15,
+-9.88,
+5.63,
+0.65,
+-9.62
+],
+"subs": [
+{
+"type": "ProfileFeature",
+"box": [
+5.36,
+0.15,
+-9.88,
+5.63,
+0.15,
+-9.62
+]
+}
+]
+},
+{
+"feature": "草图29",
+"type": "ProfileFeature",
+"box": [
+5.0,
+0.15,
+-1.75,
+6.0,
+0.15,
+-0.75
+],
+"subs": []
+},
+{
+"feature": "草图30",
+"type": "ProfileFeature",
+"box": [
+0.0,
+0.15,
+-11.0,
+11.0,
+0.15,
+-8.5
+],
+"subs": []
+},
+{
+"feature": "凸台-拉伸26",
+"type": "ICE",
+"box": [
+0.0,
+0.0,
+-11.0,
+11.0,
+0.2,
+0.0
+],
+"subs": [
+{
+"type": "ProfileFeature",
+"box": [
+0.0,
+0.15,
+-11.0,
+11.0,
+0.15,
+-8.5
+]
+}
+]
+},
+{
+"feature": "草图31",
+"type": "ProfileFeature",
+"box": [
+0.0,
+0.15,
+-11.0,
+11.0,
+0.15,
+0.0
+],
+"subs": []
+},
+{
+"feature": "凸台-拉伸10",
+"type": "ICE",
+"box": [
+0.0,
+0.0,
+-11.0,
+11.0,
+0.2,
+0.0
+],
+"subs": [
+{
+"type": "ProfileFeature",
+"box": [
+0.0,
+0.15,
+-11.0,
+11.0,
+0.15,
+0.0
+]
+}
+]
+},
+{
+"feature": "草图52",
+"type": "ProfileFeature",
+"box": [
+4.9,
+0.15,
+-1.85,
+6.1,
+0.15,
+-0.65
+],
+"subs": []
+},
+{
+"feature": "草图54",
+"type": "ProfileFeature",
+"box": [
+4.0,
+1.05,
+-7.0,
+7.0,
+1.05,
+-4.0
+],
+"subs": []
+},
+{
+"feature": "凸台-拉伸11",
+"type": "ICE",
+"box": null,
+"subs": [
+{
+"type": "ProfileFeature",
+"box": [
+4.9,
+0.0,
+-10.25,
+6.1,
+0.0,
+-0.65
+]
+}
+]
+},
+{
+"feature": "草图33",
+"type": "ProfileFeature",
+"box": [
+5.0,
+0.15,
+-10.25,
+6.0,
+0.15,
+-9.25
+],
+"subs": []
+},
+{
+"feature": "草图34",
+"type": "ProfileFeature",
+"box": [
+4.9,
+0.15,
+-1.85,
+6.1,
+0.15,
+-0.65
+],
+"subs": []
+},
+{
+"feature": "基准面1",
+"type": "RefPlane",
+"box": [
+5.5,
+-0.01,
+-11.55,
+5.5,
+0.21,
+0.55
+],
+"subs": []
+},
+{
+"feature": "草图40",
+"type": "ProfileFeature",
+"box": [
+1.5,
+0.15,
+-3.1,
+2.5,
+0.15,
+-2.5
+],
+"subs": []
+},
+{
+"feature": "凸台-拉伸12",
+"type": "ICE",
+"box": [
+1.5,
+0.15,
+-8.2,
+2.5,
+0.75,
+-2.8
+],
+"subs": [
+{
+"type": "ProfileFeature",
+"box": [
+1.5,
+0.15,
+-3.1,
+2.5,
+0.15,
+-2.5
+]
+}
+]
+},
+{
+"feature": "草图41",
+"type": "ProfileFeature",
+"box": [
+1.5,
+0.15,
+-3.4,
+2.5,
+0.15,
+-3.1
+],
+"subs": []
+},
+{
+"feature": "凸台-拉伸13",
+"type": "ICE",
+"box": [
+1.5,
+0.15,
+-8.2,
+2.5,
+0.75,
+-2.8
+],
+"subs": [
+{
+"type": "ProfileFeature",
+"box": [
+1.5,
+0.15,
+-3.4,
+2.5,
+0.15,
+-3.1
+]
+}
+]
+},
+{
+"feature": "草图43",
+"type": "ProfileFeature",
+"box": [
+1.5,
+0.15,
+-3.7,
+2.5,
+0.15,
+-3.4
+],
+"subs": []
+},
+{
+"feature": "凸台-拉伸14",
+"type": "ICE",
+"box": [
+1.5,
+0.15,
+-8.2,
+2.5,
+0.75,
+-2.8
+],
+"subs": [
+{
+"type": "ProfileFeature",
+"box": [
+1.5,
+0.15,
+-3.7,
+2.5,
+0.15,
+-3.4
+]
+}
+]
+},
+{
+"feature": "草图44",
+"type": "ProfileFeature",
+"box": [
+1.5,
+0.15,
+-4.7,
+2.5,
+0.15,
+-3.7
+],
+"subs": []
+},
+{
+"feature": "凸台-拉伸15",
+"type": "ICE",
+"box": [
+1.5,
+0.15,
+-8.48,
+9.5,
+0.75,
+-2.52
+],
+"subs": [
+{
+"type": "ProfileFeature",
+"box": [
+1.5,
+0.15,
+-4.7,
+2.5,
+0.15,
+-3.7
+]
+}
+]
+},
+{
+"feature": "草图45",
+"type": "ProfileFeature",
+"box": [
+1.5,
+0.15,
+-8.2,
+1.5,
+0.75,
+-4.7
+],
+"subs": []
+},
+{
+"feature": "凸台-拉伸18",
+"type": "ICE",
+"box": [
+1.5,
+0.15,
+-8.2,
+2.5,
+0.75,
+-2.8
+],
+"subs": [
+{
+"type": "ProfileFeature",
+"box": [
+1.5,
+0.15,
+-8.2,
+1.5,
+0.75,
+-4.7
+]
+}
+]
+},
+{
+"feature": "镜向1",
+"type": "MirrorPattern",
+"box": [
+1.5,
+0.15,
+-8.48,
+9.5,
+0.75,
+-2.52
+],
+"subs": []
+},
+{
+"feature": "草图46",
+"type": "ProfileFeature",
+"box": [
+2.5,
+0.75,
+-8.5,
+8.5,
+0.75,
+-2.5
+],
+"subs": []
+},
+{
+"feature": "凸台-拉伸19",
+"type": "ICE",
+"box": [
+2.5,
+0.15,
+-8.5,
+8.5,
+0.8,
+-2.5
+],
+"subs": [
+{
+"type": "ProfileFeature",
+"box": [
+2.5,
+0.75,
+-8.5,
+8.5,
+0.75,
+-2.5
+]
+}
+]
+},
+{
+"feature": "草图48",
+"type": "ProfileFeature",
+"box": [
+0.0,
+0.15,
+-11.0,
+11.0,
+0.15,
+0.0
+],
+"subs": []
+},
+{
+"feature": "注释",
+"type": "NotesAreaFtrFolder",
+"box": null,
+"subs": []
+},
+{
+"feature": "注释1___EndTag___",
+"type": "NotesAreaFtrFolder",
+"box": null,
+"subs": []
+},
+{
+"feature": "环境光源",
+"type": "AmbientLight",
+"box": null,
+"subs": []
+},
+{
+"feature": "线光源1",
+"type": "DirectionLight",
+"box": null,
+"subs": []
+},
+{
+"feature": "线光源2",
+"type": "DirectionLight",
+"box": null,
+"subs": []
+},
+{
+"feature": "线光源3",
+"type": "DirectionLight",
+"box": null,
+"subs": []
+},
+{
+"feature": "标注1",
+"type": "InkMarkupView",
+"box": null,
+"subs": [
+{
+"type": "ProfileFeature",
+"box": null
+}
+]
+},
+{
+"feature": "草图55",
+"type": "ProfileFeature",
+"box": null,
+"subs": []
+}
+]

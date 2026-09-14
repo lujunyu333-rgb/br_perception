@@ -1,0 +1,113 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# 融合与追踪参数 — ROBOCON 2027  (v1.7 §1.5)
+# ===========================================================================
+# 使用方式: ros2 launch br_perception bringup_full.launch.py
+#
+# 覆盖模块: 17 coordinate_transformer / 18 kalman_tracker / 19 target_associator
+#           / 20 lidar_camera_fusion / 21 fusion_node
+#
+# 里程计 (Point-LIO, ROS2 移植版):
+#   - 该移植版的里程计话题是 /aft_mapped_to_init (不是 /Odometry!)
+#   - 本方案只用其"纯里程计"输出, 绝对位姿由场地先验重定位提供 (§十.2)
+#   - 退化/振动判定见 odometry.* 小节, 输出到 PerceptionFrame.odometry_reliable
+# ═══════════════════════════════════════════════════════════════════════════
+
+/**:
+  ros__parameters:
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # 坐标系名称 (§1.5) — TF 树: world ← odom ← base_link ← {livox_frame, 相机}
+    # ═══════════════════════════════════════════════════════════════════════
+    world_frame: "world"                     # 世界坐标系 (场地坐标: 原点=西南角, X 东, Y 北)
+    odom_frame: "odom"                       # 里程计坐标系 (§4.1; 文档 §1.5 表未列, 本处补)
+    robot_base_frame: "base_link"            # 机器人基座
+    lidar_frame: "livox_frame"               # 雷达 (Livox Mid-360 出厂 frame_id)
+    camera_front_frame: "camera_front_frame" # 前相机
+    camera_rear_frame: "camera_rear_frame"   # 后相机
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # 里程计接口 — coordinate_transformer (模块 17)
+    # ═══════════════════════════════════════════════════════════════════════
+    odometry:
+      topic: "/aft_mapped_to_init"       # Point-LIO (ROS2 移植版) 里程计话题
+      imu_topic: "/livox/imu"            # IMU (退化判定用加速度方差)
+      degenerate_topic: ""               # Point-LIO 退化标志 (std_msgs/Bool); 空 = 不订阅
+
+      # ── 可靠性判定 (§4.1 v1.5) ──
+      timeout_sec: 0.5                   # 里程计超时 → TIMEOUT (数据链路断/TF 断连)
+      tf_timeout_sec: 0.05               # TF lookup 超时 → 标记坐标变换不可靠
+      imu_variance_window_sec: 1.0       # 加速度方差统计窗口 (s)
+      # 加速度模长方差阈值 — 单位 = IMU 原始加速度单位² (Mid-360 输出为 g → g²)
+      # 0.25 g² ≈ 0.5g 抖动; ⚠ 现场按坡道实测标定 (触发即 odometry_reliable=false)
+      imu_acc_variance_thresh: 0.25
+      confidence_decay: 0.5              # 退化时世界坐标置信度系数 (§1.5, 默认 0.5)
+      relative_mode_on_degraded: true    # 退化时切相对定位模式 (§1.5, 默认 true)
+      tf_publish_rate_hz: 100.0          # TF 广播限频 (高带宽里程计可达 kHz, 感知侧无需同频)
+      pose_prior_window_sec: 5.0         # BR_RESET 后位姿注入有效窗口 (s, §4.1 v1.6)
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # 时间同步 (§1.5)
+    # ═══════════════════════════════════════════════════════════════════════
+    temporal_sync:
+      max_time_diff: 0.05                # 雷达-相机最大允许时间差 (s), 超出丢弃该关联
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # 卡尔曼追踪 (§1.5 — kalman_tracker, 模块 18)
+    # ═══════════════════════════════════════════════════════════════════════
+    kalman:
+      process_noise: [0.05, 0.05, 0.05, 0.10, 0.10, 0.10]  # [dx, dy, dz, dvx, dvy, dvz]
+      measurement_noise_lidar: 0.01      # 雷达测量噪声 (位置精确)
+      measurement_noise_camera: 0.05     # 相机测量噪声 (分类可靠/位置较粗)
+      max_prediction_age: 1.0            # 最大预测时间 (s), 超出删除追踪
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # 数据关联 (§1.5 — target_associator, 模块 19)
+    # ═══════════════════════════════════════════════════════════════════════
+    association:
+      max_distance: 0.5                  # 匈牙利匹配最大距离 (m)
+      iou_threshold: 0.3                 # 3D IoU 匹配阈值
+
+    confirm_frame_count: 3               # 确认新目标所需连续检测帧数
+    delete_frame_count: 2                # 删除丢失目标所需连续丢失帧数
+
+    # 融合权重 (§1.5: 雷达=距离更可靠, 相机=分类更可靠)
+    lidar_weight: 0.7
+    camera_weight: 0.3
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # 追踪特例 (v1.6 增补)
+    # ═══════════════════════════════════════════════════════════════════════
+    tracking:
+      keep_on_spot_frames: 300           # 建筑位顶部目标强制保持帧数 (天空方块可能被翻转改归属)
+      push_detect_window_ms: 1000        # 推移检测滑动窗口 (贴地滑动/垂直轨迹异常辅助判定)
+
+    shared_zone:
+      dwell_limit_ms: 5000               # 共享区停留违规阈值 (规则 6.6)
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # 在线外参校验 (v1.2 增补 — extrinsic_monitor, 模块 22)
+    # ═══════════════════════════════════════════════════════════════════════
+    extrinsic_monitor:
+      enabled: true
+      interval_sec: 30                   # 校验周期 (s) — 场地固定特征 (柱/建筑位绿格) PnP 校验
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # 推理降级 (热管理接口)
+    # ═══════════════════════════════════════════════════════════════════════
+    inference:
+      resolution_fallback: [480, 288]    # 目标>10 或推理>30ms 时自动降级
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # 静态 TF 外参 (base_link ← 各传感器) — 本处新增, 需实测标定后回填
+    # ⚠ 当前为占位值; bringup 用 static_transform_publisher 广播
+    # ═══════════════════════════════════════════════════════════════════════
+    static_tf:
+      livox_frame:
+        translation: [0.0, 0.0, 0.25]    # ⚠ 占位: 雷达相对 base_link 的安装位置 (m)
+        rotation_rpy: [0.0, 0.0, 0.0]    # ⚠ 占位: roll/pitch/yaw (rad)
+      camera_front_frame:
+        translation: [0.15, 0.0, 0.35]   # ⚠ 占位: 与 camera_params.yaml extrinsics 一致
+        rotation_rpy: [0.0, 0.0, 0.0]
+      camera_rear_frame:
+        translation: [-0.15, 0.0, 0.35]  # ⚠ 占位
+        rotation_rpy: [0.0, 0.0, 3.14159]

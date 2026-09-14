@@ -1,0 +1,120 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+      Splitter Ratio: 0.5
+    Tree Height: 700
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.5
+      Cell Size: 1
+      Class: rviz_default_plugins/Grid
+      Color: 160; 160; 164
+      Enabled: true
+      Line Style:
+        Line Width: 0.03
+        Value: Lines
+      Name: Grid
+      Plane: XY
+      Plane Cell Count: 16
+      Reference Frame: <Fixed Frame>
+    - Alpha: 0.6
+      Class: rviz_default_plugins/PointCloud2
+      Color: 255; 255; 255
+      Enabled: true
+      Name: 仿真点云 (/livox/lidar/pointcloud)
+      Position Transformer: XYZ
+      Queue Size: 5
+      Selectable: true
+      Size (Pixels): 1
+      Style: Points
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /livox/lidar/pointcloud
+      Use Fixed Frame: true
+    - Alpha: 0.7
+      Class: rviz_default_plugins/PointCloud2
+      Color: 0; 170; 255
+      Decay Time: 60
+      Enabled: true
+      Name: LIO 建图 (/cloud_registered, 60s 累积)
+      Position Transformer: XYZ
+      Queue Size: 5
+      Selectable: true
+      Size (Pixels): 1
+      Style: Points
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /cloud_registered
+      Use Fixed Frame: true
+    - Alpha: 0.9
+      Class: rviz_default_plugins/PointCloud2
+      Color: 255; 0; 255
+      Enabled: true
+      Name: LIO 地图话题 (/Laser_map, 仅初始化帧)
+      Position Transformer: XYZ
+      Queue Size: 5
+      Selectable: true
+      Size (Pixels): 1
+      Style: Points
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /Laser_map
+      Use Fixed Frame: true
+    - Alpha: 1
+      Class: rviz_default_plugins/Path
+      Color: 255; 170; 0
+      Enabled: true
+      Line Style: Lines
+      Line Width: 0.03
+      Name: 轨迹 (/path)
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /path
+    - Alpha: 1
+      Class: rviz_default_plugins/Odometry
+      Color: 0; 255; 0
+      Enabled: true
+      Keep: 200
+      Name: 仿真真值 (/ground_truth/odom)
+      Position Tolerance: 0.05
+      Shape:
+        Alpha: 1
+        Axes Length: 0.3
+        Axes Radius: 0.03
+        Value: Axes
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /ground_truth/odom
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    # odom←base_link 由 planar_move 发布, base_link←livox_frame 由 launch 的静态 TF 提供
+    Fixed Frame: odom
+    Frame Rate: 20
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/FocusCamera
+  Value: true
+Window Geometry:
+  Height: 800
+  Width: 1200

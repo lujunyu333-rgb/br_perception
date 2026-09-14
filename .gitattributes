@@ -1,0 +1,15 @@
+# 仓库内统一存 LF; 工作区按平台各自处理 (本项目 Windows 编辑 + Ubuntu 构建)
+* text=auto
+
+# 明确按二进制处理, 避免 git 误判后做换行转换而损坏文件
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.pdf  binary
+*.docx binary
+*.stl  binary
+*.obj  binary
+*.mtl  binary
+*.sdf  binary
+*.dae  binary
+*.pyc  binary

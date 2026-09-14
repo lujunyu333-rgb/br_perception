@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/d/Anaconda3/python -c ' *)",
+      "Bash(python)"
+    ]
+  }
+}

@@ -1,0 +1,35 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# ROBOCON 2027 BR 感知系统 — 忽略规则
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ── ROS 2 / colcon 构建产物 (本仓库是"仓库根 = ROS 包", 构建目录就在根下) ──
+build/
+install/
+log/
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+
+# ── IDE ──
+.idea/
+*.iml
+.vscode/
+
+# ── 本机工具配置 (名字里就写着 local) ──
+.claude/settings.local.json
+
+# ── 生成的仿真资产 (由 scripts/make_gazebo_world.py 可重新生成, 53MB) ──
+#   重新生成: python3 scripts/make_gazebo_world.py
+scripts/out/
+
+# ── 系统杂物 ──
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+*.swp
+
+# ── 规则书原件 (主办方材料, public 仓库不宜转载; 要纳管就删掉下面两行) ──
+doc/Robocon_2027_Rulebook_v1.0 _CN.pdf
+scripts/_rb11.pdf

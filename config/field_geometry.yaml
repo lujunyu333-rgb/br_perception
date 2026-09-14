@@ -1,0 +1,385 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# 场地几何配置 — ROBOCON 2027  (BR 感知系统)
+# ===========================================================================
+# 本文件由团队根据官方规则书 v1.1 + 实测坐标**直接填写**。
+# 坐标系: 原点 = 场地西南角, X 东, Y 北, Z 上; 单位 = 米(m)。
+# 红队(我方)在西半场, 蓝队在东半场, 中轴 x=5.5。
+#
+# 2026-09-09 更新: 全部区域位置/大小按 C:\学习\地图.SLDPRT 线稿实测回填
+#   (线稿 = 各区域边界俯视框, 用户确认尺寸精确; 围栏宽 20mm、高 50mm,
+#    模型场地平面: X 东/北向取线稿 Y, SW 实体仅作高度参照)
+# ✅ CONFIRMED-SW = 按 SW 地图线稿实测
+# ⚠ PENDING      = SW 未画 / 待官方图2 数值回填 (见文末清单)
+# ═══════════════════════════════════════════════════════════════════════════
+
+/**:
+  ros__parameters:
+
+    # ── 1. 场地基础 ──
+    field:
+      origin: [0.0, 0.0]            # CONFIRMED-SW 场地外框 (0,0)-(11,11), 草图1
+      size:   [11.0, 11.0]          # CONFIRMED-SW 11000×11000mm
+
+    ground_level:
+      z: 0.0
+
+    # ── 2. 平台 (CONFIRMED-SW, 草图7/10) ──
+    l1_platform:
+      # ✅ 6×6 = **净台面**(不含周界屏障) —— 屏障立在它外面 x[2.48,2.50] / [8.50,8.52]
+      height: 0.6                   # CONFIRMED 600mm (实体高差 0.6)
+      center: [5.5, 5.5]
+      half_size: [3.0, 3.0]         # 6000×6000mm
+      x_range: [2.5, 8.5]           # CONFIRMED-SW 草图7
+      y_range: [2.5, 8.5]           # CONFIRMED-SW
+
+    l2_platform:
+      height: 0.9                   # CONFIRMED 900mm
+      center: [5.5, 5.5]
+      half_size: [1.5, 1.5]         # 3000×3000mm
+      x_range: [4.0, 7.0]           # CONFIRMED-SW 草图10
+      y_range: [4.0, 7.0]           # CONFIRMED-SW
+
+    # ── 3. 转运/存储/共享区 ──
+    transfer_zone:                  # 1000×1000mm
+      # ✅ 用户确认: 转运区 = 草图44 (楼梯顶端与 L1 同高的 1×1 平台)
+      platform_z: 0.6               # ✅ 与 L1 齐平 (草图44 = 楼梯顶平台, SW 实体 z→0.60)
+      ours:
+        center: [2.0, 4.2]          # ✅ CONFIRMED-SW 草图44: x[1.5,2.5] y[3.7,4.7]
+        corners: [1.5, 3.7, 2.5, 3.7, 2.5, 4.7, 1.5, 4.7]
+      theirs:
+        center: [9.0, 4.2]          # ✅ CONFIRMED-SW: "镜向1" 生成蓝侧同构体, 草图46 蓝侧 x=8.5 有同样的 y[3.7,4.7] 开口
+        corners: [9.5, 3.7, 8.5, 3.7, 8.5, 4.7, 9.5, 4.7]
+
+    storage_zone:                   # 1000×2000mm
+      ours:
+        center: [1.02, 10.48]       # ✅ CONFIRMED-SYM: 红方西北角 x[0.02,2.02](蓝实测东北角镜像, 用户确认左右对称)
+        corners: [0.02, 9.98, 2.02, 9.98, 2.02, 10.98, 0.02, 10.98]
+      theirs:
+        center: [9.98, 10.48]       # ✅ CONFIRMED-SW 草图2: (8.98,9.98)-(10.98,10.98)
+        corners: [8.98, 9.98, 10.98, 9.98, 10.98, 10.98, 8.98, 10.98]
+
+    ground_shared_zone:             # 圣所(穆斯蒂卡柱)地面共享区
+      center: [5.5, 9.75]           # ✅ CONFIRMED-SW 草图3/33: 北端中央
+      half_size: [0.5, 0.5]         # ✅ CONFIRMED-SW (5,9.25)-(6,10.25), 带X对角纹
+      mustika_surround:             # 1000×1000mm
+        half_size: [0.5, 0.5]
+
+    l1_shared_zone:
+      # ✅ 2026-09-11 用户确认: 带宽 = 外 1000×750、内 500×500 (内框居中于外框, 每边留 250)
+      #    → 宽度取 1.0 (x[5.0,6.0]); SW 草图23 画成 x[4.95,6.05] = 1.1, x 向多 50/边、y 向留 250, 不对称 = 画歪
+      #    → 原 PENDING "1.1 vs 官方 1.0" 关闭, 官方 1.0 为准
+      description: "L1 中轴共享带 (x[5.0,6.0], 每队半带 500); 南北两端各一组 {外框 (草图23) ⊃ 内框 (草图20)}; 中段净空 y[3.27,7.73]"
+      platform_z: 0.6               # ✅ 共享带在 L1 台面上
+      band_width: 1.0               # ✅ 外框宽 1000
+      outer:                        # 外框 1000×750 (草图23; SW 的 1.1 宽已修正)
+        size: [1.0, 0.75]
+        half_size: [0.5, 0.375]
+      inner:                        # 内框 500×500 (草图20), 居中于外框, 每边留 0.25
+        size: [0.5, 0.5]
+        half_size: [0.25, 0.25]
+      ours_band_x: [5.0, 5.5]       # ✅ 红半带 500 宽
+      theirs_band_x: [5.5, 6.0]     # ✅ 蓝半带 500 宽
+      ends:                         # 两端框位 (红蓝同 x, 沿中轴对称)
+        south:                      # 南端
+          outer_y_range: [2.52, 3.27]   # ✅ 草图23, 750 深
+          inner_y_range: [2.52, 3.02]   # ✅ 草图20, 500 深, 贴南缘
+        north:                      # 北端
+          outer_y_range: [7.73, 8.48]   # ✅ 草图23, 750 深
+          inner_y_range: [7.98, 8.48]   # ✅ 草图20, 500 深, 贴北缘
+
+    l2_shared_zone:
+      description: "整个 L2 平台为共享区 (CONFIRMED)"
+      center: [5.5, 5.5]
+      half_size: [1.5, 1.5]
+
+    # ── 4. 柱子 ──
+    mustika_pillar:                 # 高500mm Ø270mm (CONFIRMED-SW: 实体拉伸8 z 0→0.50)
+      position: [5.5, 9.75]         # ✅ CONFIRMED-SW 圣所中心, 草图3/33 + 实体拉伸8 (Ø~0.26)
+      height: 0.5                   # ✅ OFFICIAL 500mm, SW 实体 0→0.50 印证
+      diameter: 0.27                # ✅ OFFICIAL Ø270 (SW 量得 Ø~0.26)
+      radius: 0.135
+      receptacle:                   # ✅ OFFICIAL 顶部凹槽, 用于托住穆斯蒂卡球
+        diameter: 0.18              # Ø180
+        depth: 0.10                 # 深 100mm
+
+    core_pillar:                    # 高800mm Ø270mm (CONFIRMED-SW: 实体拉伸6 z 0.90→1.70)
+      position: [5.5, 5.5]          # ✅ CONFIRMED-SW 实体拉伸6, L2 顶中央
+      height: 0.8                   # ✅ OFFICIAL 800mm, SW 实体 0.90→1.70 印证
+      diameter: 0.27                # ✅ OFFICIAL Ø270 (SW 量得 Ø~0.26)
+      radius: 0.135
+      receptacle:                   # ✅ OFFICIAL 顶部凹槽, 安放穆斯蒂卡
+        diameter: 0.18              # Ø180
+        depth: 0.10                 # 深 100mm
+
+    # ── 5. 建筑位 (500×500mm) ──
+    building_spots:
+      spot_size: 0.5
+      spot_half_size: 0.25
+      # ✅ 2026-09-11 用户确认: "L1 上中间对称轴上的 2 个 500×500 是共享的"
+      #   = l1_shared_zone 的南北内框 (草图20), 跨中轴 x[5.25,5.75]
+      # 结构注 (2026-09-12 实测): 必须写成 "id → 位姿" 的 map。
+      #   ROS 参数解析器不支持"列表套 map"(序列元素为 map), 旧写法会让任何加载本文件的
+      #   节点在构造时抛 parameter_value_from 异常并 SIGABRT 退出。
+      shared:
+        L1_SHARED_S: { center: [5.5, 2.77], x_range: [5.25, 5.75], y_range: [2.52, 3.02] }
+        L1_SHARED_N: { center: [5.5, 8.23], x_range: [5.25, 5.75], y_range: [7.98, 8.48] }
+      # ✅ L1 四角位 (草图9 的 4 个 0.5×0.5 角块, 贴 L1 内壁面 2.52/8.48 → 中心 2.77/8.23)
+      l1_corners:
+        L1_R_SW: { center: [2.77, 2.77], x_range: [2.52, 3.02], y_range: [2.52, 3.02] }  # 红(西)
+        L1_R_NW: { center: [2.77, 8.23], x_range: [2.52, 3.02], y_range: [7.98, 8.48] }  # 红(西)
+        L1_B_SE: { center: [8.23, 2.77], x_range: [7.98, 8.48], y_range: [2.52, 3.02] }  # 蓝(东)
+        L1_B_NE: { center: [8.23, 8.23], x_range: [7.98, 8.48], y_range: [7.98, 8.48] }  # 蓝(东)
+      # ✅ 2026-09-11 用户确认 "1没得": 西/东列在 y=5.5 中间行**没有位** → L1 就是这 6 个
+      # SW 列带实测 (L1): 西列 x[2.52,3.02] 中心2.77 | 中列 x[5.25,5.75] 中心5.5 (=共享列)
+      #                  东列 x[7.98,8.48] 中心8.23; 纵向覆盖 y[2.52,8.48]
+      # ✅ L2 = 4 个角位 = **草图54 (L2 放置区)** 的 4 个 0.5×0.5 角块
+      #   2026-09-11 用户原话: "l2 4个角4个" / "54是l2放置区"; 草图20 用户原话: "是l1共享的"
+      #   2026-09-11 更正: 早前"L2 无线稿依据"的判断有误 — 当时只搜了 x≈4.25/6.75 的中心线,
+      #   而草图54 画的是 4.0/4.5/6.5/7.0 的**边**线, 故漏检。
+      l2_corners:
+        L2_SW: { center: [4.25, 4.25], x_range: [4.0, 4.5], y_range: [4.0, 4.5] }
+        L2_SE: { center: [6.75, 4.25], x_range: [6.5, 7.0], y_range: [4.0, 4.5] }
+        L2_NE: { center: [6.75, 6.75], x_range: [6.5, 7.0], y_range: [6.5, 7.0] }
+        L2_NW: { center: [4.25, 6.75], x_range: [4.0, 4.5], y_range: [6.5, 7.0] }
+      # 原 l1: [] / l2: [] 空表已删 (2026-09-12): 空数组会解析成"无值参数", 同样让节点
+      # 构造失败; 且已由 l1_corners / l2_corners 取代, 无代码读取。
+      # (节点实际读的是第 11 节兼容层 building_spot_x/y/z, 共 10 个位)
+
+    # ── 6. 围栏/中心分隔 ──
+    fences:
+      # ✅ 2026-09-11 用户明确: "11×11 / 6000 都是**不算围栏**的净尺寸" → 围栏立在净区**外面**
+      #    (x_range/y_range 给的 0..11 与 2.5..8.5 都是净尺寸; 围栏不占这些尺寸内部的空间)
+      description: "场地外圈围栏 (Game Field Boundary), 立在 11×11 净区之外 (x[-0.02,0] / [11,11.02] …)"
+      width: 0.02                   # ✅ SW 实测 20mm
+      height: 0.05                  # ✅ 50mm (SW: L1 顶 0.60 → 围栏顶 0.65)
+      outside_clear_area: true      # ✅ 围栏在净区外侧, 不侵入 11×11
+      segments: [0.0, 0.0, 11.0, 0.0, 11.0, 0.0, 11.0, 11.0, 11.0, 11.0, 0.0, 11.0, 0.0, 11.0, 0.0, 0.0]
+    center_divider:
+      description: "中轴隔墙(20mm宽): 跑满 y∈[0,11], **只在四处共享区断开** —— 南端天空棋盘 y[0.65,1.85]、L1 共享带 y[2.52,3.27]/[7.73,8.48]、北端穆斯蒂卡 y[9.25,10.25]"
+      # ⚠ 2026-09-11 更正: 早前记"南北两端留口(y<0.63 / y>10.27)"是**误读** —— 草图48 里的
+      #   (5.490,0)->(5.490,0.630) 与 (5.510,0.630)->(5.510,0) 就是**墙本身**, 不是开口标记
+      #   (用户在图上是这么画的: 南北两端蓝色的墙). 现按 y[0,11] 减共享区生成。
+      segments: [5.5, 0.0, 5.5, 11.0]
+      wall_width: 0.02
+      wall_height: 0.05
+
+    # ── 7. 楼梯 + 坡道 (CONFIRMED-SW 2026-09-11: 用户确认草图40/41/43=3阶, 44=顶, 45+44一边=斜坡) ──
+    # 红侧西竖带 x[1.5,2.5], 自南向北: 3 级阶梯 → 顶平台 44(=转运区) → 坡道; 蓝侧 x[8.5,9.5] 由"镜向1"镜像
+    stairs:
+      description: "上 L1 阶梯 (草图40/41/43): 红 x[1.5,2.5] y[2.8,3.7]; 3 级踏面各 0.3 深、高差 0.15, 自南(y2.8)向北爬升; 第 3 级后缘 y=3.7 接转运区平台 44; 蓝镜像 x[8.5,9.5]"
+      ours:
+        from_xy: [1.5, 2.8]         # ✅ 第 1 级前缘 (南)
+        to_xy:   [1.5, 3.7]         # ✅ 第 3 级后缘 (北, 接草图44)
+        band_x: [1.5, 2.5]
+        height: 0.6                 # 总升高到 L1 面
+        step_height: 0.15           # 3 级 ×150mm (3 级踏面 + 登上 44 = 4 次升高 ×0.15 = 0.6)
+        step_count: 3
+        tread_depth: 0.3            # ✅ CONFIRMED-SW 草图40/41/43 各级 y 跨度均 0.3
+      theirs:
+        from_xy: [9.5, 2.8]
+        to_xy:   [9.5, 3.7]
+        band_x: [8.5, 9.5]
+        height: 0.6
+        step_height: 0.15
+        step_count: 3
+        tread_depth: 0.3
+    ramp:                           # ✅ CONFIRMED-SW 草图45 (拉伸18): 3500mm 坡道
+      description: "斜坡 (草图45, 直角三角形剖面): 红 x[1.5,2.5] y[4.7,8.2]; 北端 y=8.2 接地 z=0, 南端 y=4.7 升至 L1 面 z=0.6, 与转运区平台 44 的北边共边; 长 3.5 与规则 3.4.5 的 3500mm 坡道吻合; 蓝镜像 x[8.5,9.5]"
+      ours:
+        band_x: [1.5, 2.5]
+        low_xy:  [2.0, 8.2]         # ✅ 接地端 (北)
+        high_xy: [2.0, 4.7]         # ✅ 顶部, 接草图44 北边 (南)
+        run: 3.5
+        width: 1.0
+        rise: 0.6
+        slope_deg: 9.7
+      theirs:
+        band_x: [8.5, 9.5]
+        low_xy:  [9.0, 8.2]
+        high_xy: [9.0, 4.7]
+        run: 3.5
+        width: 1.0
+        rise: 0.6
+        slope_deg: 9.7
+    l1_l2_stairs:                   # ✅ CONFIRMED-SW 草图25 / 拉伸7: L1→L2 阶梯 (2026-09-11 用户确认)
+      # 草图25 是两条 0.3×1.0 分离小条 (非贯通矮带); 拉伸7 包围盒 x[3.7,7.3] Z[0.75,0.9] 只是两者合并后的 bbox
+      # 实体从 L1 顶 (SW 0.75) 升到 0.9 = 中间踏面 (场地 z 0.75 = L1+0.15), 再上 0.15 即 L2 (0.9)
+      description: "L1 上 L2 阶梯: 2 级 ×150mm (0.6 → 0.75 踏面 → 0.9); 踏面 0.3 深 ×1.0 宽; 位于 L2 西/东边缘 y[4.88,5.88], 红用西条、蓝用东条"
+      step_height: 0.15             # ✅ 用户确认 "也是高 150mm"
+      step_count: 2
+      tread_depth: 0.3
+      y_range: [4.88, 5.88]
+      ours:
+        x_range: [3.7, 4.0]         # ✅ SW 草图25 西条 (贴 L2 西边 x=4.0), 红方上 L2 通道
+      theirs:
+        x_range: [7.0, 7.3]         # ✅ SW 草图25 东条 (贴 L2 东边 x=7.0), 蓝方上 L2 通道
+
+    # ── 8. 启动区 / 重试区 ──
+    start_zones:
+      box_size: 0.7                 # 700×700mm (CONFIRMED)
+      description: "红方两格在西南 y∈[0.02,0.72], 蓝方两格在东南; BR = 内侧格 (2026-09-11 用户确认'内侧是 BR 启动区')"
+      ours:
+        tr: [0.37, 0.37]            # ✅ CONFIRMED-SW 草图2: x[0.02,0.72] (西南角格)
+        br: [1.17, 0.37]            # ✅ CONFIRMED 草图2 内格 x[0.82,1.52] (靠中轴侧)
+      theirs:                       # 对称格 x'=11−x: 蓝 TR=东南角格, 蓝 BR=靠中轴格
+        tr: [10.63, 0.37]           # ✅ CONFIRMED 草图2 x[10.28,10.98]
+        br: [9.83, 0.37]            # ✅ CONFIRMED 草图2 内格 x[9.48,10.18]
+    retry_zones:
+      description: "L1 重试区 (CONFIRMED-SW 草图27): 红 x[3.15,3.85] 蓝 x[7.15,7.85] y[7.78,8.48]"
+      l1:
+        ours:   [3.5, 8.13]         # ✅ CONFIRMED-SW
+        theirs: [7.5, 8.13]         # ✅ CONFIRMED-SW
+
+    # ── 9. 天空方块初始棋盘 (CONFIRMED-SW 草图3/34/52: 中心 (5.5,1.25), 1.2×1.2) ──
+    # ── 9. 天空方块初始棋盘 (2026-09-11 用户更正: 格区是内框 1000×1000 里的 5×5, 单格 200×200) ──
+    #   外框 1200×1200 (草图52/34: x[4.9,6.1] y[0.65,1.85], 中心 (5.5,1.25))
+    #   内框 1000×1000 (草图29: x[5.0,6.0] y[0.75,1.75]) ── 四周各留 100 边框
+    #   25 格 = 内框 1000 分 5×5 每格 200 ✗ 旧值 grid_step 0.24 是拿 1200÷5 误算的
+    #   例: 用户原话 "天空棋盘就是 1200*1200 中的 1000*1000 变成 200*200 的 25 个"
+    # ── 9. 天空方块初始棋盘 (2026-09-11 用户更正: 格区是内框 1000×1000 里的 5×5, 单格 200×200) ──
+    #   外框 1200×1200 (草图52/34: x[4.9,6.1] y[0.65,1.85], 中心 (5.5,1.25))
+    #   内框 1000×1000 (草图29: x[5.0,6.0] y[0.75,1.75]) ── 四周各留 100 边框
+    #   25 格 = 内框 1000 分 5×5, 每格 200。旧值 grid_step 0.24 是拿 1200÷5 误算的, 已废。
+    #   用户原话: "天空棋盘就是 1200*1200 中的 1000*1000 变成 200*200 的 25 个"
+    sky_block_initial:
+      center: [5.5, 1.25]           # ✅ CONFIRMED-SW
+      outer_size: [1.2, 1.2]        # ✅ 外框 1200 (草图52/34)
+      outer_x_range: [4.9, 6.1]
+      outer_y_range: [0.65, 1.85]
+      inner_size: [1.0, 1.0]        # ✅ 内框 1000 = 25 格所在区 (草图29)
+      inner_x_range: [5.0, 6.0]
+      inner_y_range: [0.75, 1.75]
+      border: 0.10                  # 外框与内框之间的边宽
+      grid_step: 0.20               # ✅ 单格 200mm (内框 1000 / 5)
+      grid_origin: [5.10, 0.85]     # ✅ 5×5 西南格中心 = 内框西南角 + 半格
+      count: 12                     # CONFIRMED
+      # 拍平 [x,y,color×12], color: 1.0=红朝上 2.0=蓝朝上; 中心格空置
+      # 规则 4.1.4: 只放 r+c 为偶数的棋盘格(25 中 13 格, 去中心 = 12), 颜色沿中心列镜像
+      # ⚠ 色序仍是 v1.6 先验(按上述规则推的), 未被官方/线稿核过 — 见文末 PENDING
+      # 注: 颜色必须写成 1.0/2.0 — ROS 参数解析要求数组元素同类型, 混 int 会拒绝加载
+      positions: [5.10, 0.85, 1.0, 5.50, 0.85, 1.0, 5.90, 0.85, 2.0,
+                  5.30, 1.05, 1.0, 5.70, 1.05, 2.0, 5.10, 1.25, 1.0,
+                  5.90, 1.25, 2.0, 5.30, 1.45, 1.0, 5.70, 1.45, 2.0,
+                  5.10, 1.65, 1.0, 5.50, 1.65, 2.0, 5.90, 1.65, 2.0]
+
+    # ── 10. 场地配色 — 规则书 §14 "Colors and Materials Specification" (OFFICIAL) ──
+    #   来源: 官方英文 v1.1 §14 表。2026-09-11 按全表补全。
+    #   ★ 中文 v1.0 §14 表与 v1.1 的**场地部分逐项一致**; 唯一的差异是穆斯蒂卡 (见本节末)。
+    #   材料均为"胶合板 + 水性涂料", 柱为"PVC 管 Ø270 + 木盖 + 油性漆"。单位 RGB 0-255。
+    zone_colors:
+      # ── 地面 ──
+      ground_red:            [240, 210, 210]   # Ground Area (Red)
+      ground_blue:           [170, 210, 230]   # Ground Area (Blue)
+      ground_shared_cream:   [245, 240, 200]   # Ground Shared Area
+      # ── 启动区 / 重试区 ──
+      start_retry_red:       [223, 34, 34]     # Start Zone / Retry Zone (Red)
+      start_retry_blue:      [50, 0, 255]      # Start Zone / Retry Zone (Blue)
+      l1_retry_red:          [223, 34, 34]     # L1 Retry Zone (Red)
+      l1_retry_blue:         [50, 0, 255]      # L1 Retry Zone (Blue)
+      # ── 存储区 (与同色地面同值 → 无法靠颜色区分, 需靠几何) ──
+      storage_red:           [240, 210, 210]   # Storage Area (Red)  ≡ ground_red
+      storage_blue:          [170, 210, 230]   # Storage Area (Blue) ≡ ground_blue
+      # ── L1 ──
+      l1_area_red:           [235, 180, 160]   # Level 1 Area (Red)
+      l1_area_blue:          [150, 215, 220]   # Level 1 Area (Blue)
+      l1_shared_cream:       [245, 240, 200]   # L1 Shared Area (≡ ground_shared_cream)
+      building_spot_l1:      [40, 100, 50]     # Building Spot (L1)
+      transfer_red:          [245, 170, 60]    # Transfer Area (Red)
+      transfer_blue:         [60, 170, 245]    # Transfer Area (Blue)
+      l1_perimeter_barrier:  [190, 190, 185]   # L1 Perimeter Barrier (立于 6×6 净台面之外)
+      l1_side_wall:          [190, 190, 185]   # L1 Side Wall
+      # ── 过渡元素: 地面 → L1 ──
+      l1_stairs_red:         [235, 180, 160]   # L1 Stairs (Red)
+      l1_stairs_blue:        [150, 215, 220]   # L1 Stairs (Blue)
+      ramp_red:              [200, 150, 140]   # Ramp (Red)
+      ramp_blue:             [130, 180, 200]   # Ramp (Blue)
+      # ── 过渡元素: L1 → L2 ──
+      l2_stairs_red:         [235, 180, 160]   # L2 Stairs (Red)
+      l2_stairs_blue:        [150, 215, 220]   # L2 Stairs (Blue)
+      # ── L2 ──
+      l2_area:               [190, 190, 185]   # Level 2 Area
+      building_spot_l2:      [40, 100, 50]     # Building Spot (L2)
+      l2_side_wall:          [190, 190, 185]   # L2 Side Wall (§14 色表里有, 但**实物/团队模型无此墙**;
+                                               #   用户 2026-09-11 明确 "L2 没有侧墙"。仅作色值参考, 未建模)
+      # ── 柱 ──
+      mustika_pillar_brown:  [100, 62, 0]      # Mustika Pillar
+      central_pillar_brown:  [100, 62, 0]      # Central Pillar
+      # ── 边界与障碍 (★ 是"棕"不是"灰") ──
+      game_field_boundary:   [100, 62, 0]      # Game Field Boundary
+      center_divider_fence:  [100, 62, 0]      # Center Divider Fence
+      # ── 游戏对象 ──
+      earth_block_red:       [223, 34, 34]     # Earth Block (Red)
+      earth_block_blue:      [50, 0, 255]      # Earth Block (Blue)
+      sky_block_red_face:    [223, 34, 34]     # Sky Block (Red Face)
+      sky_block_blue_face:   [50, 0, 255]      # Sky Block (Blue Face)
+      # ── 穆斯蒂卡 (★ v1.0 与 v1.1 唯一分歧处) ──
+      #   v1.1: Mikasa V300W 排球 (Size 5, Ø210, 合成革, 260-280g), 原厂配色,
+      #         官方给的是 Pantone: 黄 1235C / 蓝 3591C (未给 RGB)
+      #   v1.0(中文): 标准五人制足球 (尺寸4, Ø200, 金属漆, 400-440g) = 218-165-32 纯金
+      #   下面两条是 Pantone→sRGB 的**近似**值, 各来源不一致(1235C 有 5 种, 3591C 从 #03257E 到 #142E7B):
+      #   ⚠ 仅作参考, 实战必须在现场对实物球取样标定 (见 color_thresholds.yaml 的现场校准要求)
+      mustika_ball_yellow_p1235c: [255, 184, 28]   # Pantone 1235C 近似 (最常引用值 #FFB81C)
+      mustika_ball_blue_p3591c:   [3,   37,  126]  # Pantone 3591C 近似 (最常引用值 #03257E)
+      # ── 旧键名保留 (向后兼容; 生成器/绘图脚本仍在用) ──
+      red_team_start:        [223, 34, 34]     # ≡ start_retry_red
+      blue_team_start:       [50, 0, 255]      # ≡ start_retry_blue
+      ground_shared:         [245, 240, 200]   # ≡ ground_shared_cream
+      building_spot_green:   [40, 100, 50]     # ≡ building_spot_l1/l2
+      pillar_brown:          [100, 62, 0]      # ≡ mustika/central_pillar_brown
+      fence_gray:            [190, 190, 185]   # ⚠ 名不副实: 190-190-185 是 L1/L2 周界屏障·侧墙·L2 地面;
+                                               #   场地边界与中轴隔墙其实是 100-62-0 (见 game_field_boundary)
+      mustika_gold:          [218, 165, 32]    # ⚠ 这是 **v1.0** 的金球值; v1.1 已改为排球, 见上面两条
+    # ── 10.5 游戏对象尺寸 (规则书术语表, OFFICIAL; 供检测器与塔高分类) ──
+    game_objects:
+      earth_block:                  # ✅ 立方体 350×350×350 (±5%), 每队 20 个, 约 600g
+        size: [0.35, 0.35, 0.35]
+        count_per_team: 20
+      sky_block:                    # ✅ 立方体 200×200×200 (±5%), 共 12 个, 约 220g
+        size: [0.20, 0.20, 0.20]    #    一面红一面蓝 (colored red on one side and blue on the other)
+        count: 12
+      mustika:                      # ✅ Mikasa V300W 排球 Size5, Ø≈210mm, 260-280g, 原厂不涂装
+        diameter: 0.21
+        points: 250
+      complete_tower:               # ✅ OFFICIAL 定义: 恰好 2 个地球方块竖叠 + 顶部 1 个天空方块
+        height: 0.90                #    0.35 + 0.35 + 0.20 = 0.90
+        composition: [earth_block, earth_block, sky_block]
+
+    # ── 11. 兼容层 (供现有节点) ──
+    # ✅ 2026-09-11 回填 **10 个**建筑位; 平台高用 per-spot 的 building_spot_z 区分 L1/L2
+    #   L1 6 个 (z=0.6): 四角 4 + 中轴共享 2 — 用户确认 "1没得" (西/东列 y=5.5 中间行没有位)
+    #   L2 4 个 (z=0.9): 草图54 (L2 放置区) 的 4 个角块
+    #   ⚠ 依赖代码新增的 building_spot_z 参数; 旧代码不认它 → L2 位会被按 platform_z=0.6 量,
+    #     空位算出 0.3 落进 one_earth(0.20~0.45) 被误报成"有 1 块"。
+    building_spot_x: [2.77, 2.77, 8.23, 8.23, 5.5,  5.5,  4.25, 6.75, 6.75, 4.25]
+    building_spot_y: [2.77, 8.23, 2.77, 8.23, 2.77, 8.23, 4.25, 4.25, 6.75, 6.75]
+    building_spot_z: [0.6,  0.6,  0.6,  0.6,  0.6,  0.6,  0.9,  0.9,  0.9,  0.9]
+    platform_z: 0.6
+    spot_half_size: 0.25
+    column_z_min: 0.0
+    column_z_max: 1.5
+    min_points_threshold: 5
+    top_surface_tolerance: 0.03
+    top_surface_min_points: 3
+    empty_max_height: 0.05
+    one_earth_min: 0.20
+    one_earth_max: 0.45
+    two_earth_min: 0.55
+    two_earth_max: 0.80
+    complete_tower_min: 0.80
+    complete_tower_max: 1.10
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 对称规则 (2026-09-09 用户确认): 红蓝全图左右对称于中轴 x=5.5,
+#   蓝侧坐标 = 红侧镜像 (x' = 11−x)。凡 CONFIRMED-SYM 均由红/蓝侧实测镜像而来。
+# ⚠ PENDING 清单(2026-09-11 更新后剩余):
+#   1) 天空棋盘 12 块的**色序**未实测: 几何(外框1200/内框1000/单格200/中心/块数)已确认, 但每格红蓝朝向
+#      是按规则 4.1.4 "沿中心列镜像" 推的先验 — 待官方图3/4 或现场核对
+#   2) SW 地图的实体面/体色未与 §14 官方表比对 (SW 是自家模型, 可能有偏; 非阻塞, 开着 SW 时顺手核)
+#   3) 穆斯蒂卡: v1.1 说球场用 Mikasa V300W 排球, v1.0(中文) 说是金色五人制足球 —
+#      需向组委会确认实物, 并在现场对实物取样标定阈值 (config 内两条 Pantone 近似值仅供参考)
+# 已于 2026-09-11 关闭: 天空棋盘格距 (用户更正: 内框 1000 分 5×5 单格 200, 旧 0.24 系拿 1200÷5 误算); zone_colors 按 §14 全表补全 (43 键, 修正"场地边界/中轴隔墙是棕 100-62-0 而非灰"); L1 建筑位中间行 (用户 "1没得", L1 共 6 位); platform_z 单值 (代码已加 building_spot_z, L2 4 位已入列); BR 启动格 = 内格;
+#   L1 中央矮带语义 = 草图25 L1→L2 阶梯 (2 级 ×150mm, 见 l1_l2_stairs);
+#   坡道 (草图45) = 3500mm 已入 config; 蓝侧转运区 (9.0,4.2) 经 "镜向1" + 草图46 蓝侧开口确认;
+#   L1 共享带宽 = 1.0 (用户确认"外 1000×750 / 内 500×500", SW 的 1.1 系画歪, 见 l1_shared_zone)。
+# 补全方式: 拿到图2/官方数值后直接替换 ⚠ PENDING 项即可。
+# ═══════════════════════════════════════════════════════════════════════════

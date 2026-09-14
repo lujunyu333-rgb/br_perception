@@ -1,0 +1,71 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Point-LIO 仿真参数 — Gazebo Classic 11 + sensor_rig (任务书 §4.1/§十.2 仿真验证)
+# ===========================================================================
+# 与实机 (lio_ws/.../config/mid360.yaml) 的差异都用 ⚠ 标出:
+#   仿真雷达是 16 线旋转式 ray 传感器 (PointCloud2), 经
+#   src/utils/pointcloud2_to_livox_custom 桥接成 CustomMsg → 仍走 lidar_type=1 通路
+#
+# ⚠ 单位陷阱: Gazebo IMU 输出 m/s², 实机 Mid-360 输出 g
+#     → acc_norm / satu_acc 必须改 (否则重力 9.81 会被当成饱和直接丢弃)
+# ═══════════════════════════════════════════════════════════════════════════
+
+/**:
+    ros__parameters:
+        common:
+            lid_topic: "/livox/lidar"          # 桥接节点输出 (CustomMsg)
+            imu_topic: "/imu/data"             # Gazebo IMU (100Hz)
+            con_frame: false
+            con_frame_num: 1
+            cut_frame: false
+            cut_frame_time_interval: 0.1
+            time_lag_imu_to_lidar: 0.0
+
+        preprocess:
+            lidar_type: 1        # Livox CustomMsg (与实机同通路)
+            scan_line: 16        # ⚠ 仿真 16 线 (须与桥接的 scan_lines 参数一致)
+            timestamp_unit: 3
+            blind: 0.5
+
+        mapping:
+            imu_en: true
+            start_in_aggressive_motion: false
+            extrinsic_est_en: false
+            imu_time_inte: 0.01          # ⚠ 仿真 IMU 100Hz (实机 200Hz → 0.005)
+            satu_acc: 30.0               # ⚠ m/s² (≈3g); 实机是 3.0 (g)
+            satu_gyro: 35.0              # rad/s (两侧一致)
+            acc_norm: 9.81               # ⚠ m/s²; 实机 1.0 (g)
+            lidar_meas_cov: 0.01
+            acc_cov_output: 500.0
+            gyr_cov_output: 1000.0
+            b_acc_cov: 0.0001
+            b_gyr_cov: 0.0001
+            imu_meas_acc_cov: 0.01
+            imu_meas_omg_cov: 0.01
+            gyr_cov_input: 0.01
+            acc_cov_input: 0.1
+            plane_thr: 0.1
+            match_s: 81.0
+            fov_degree: 360.0
+            det_range: 100.0
+            gravity_align: true
+            gravity: [ 0.0, 0.0, -9.810 ]
+            gravity_init: [ 0.0, 0.0, -9.810 ]
+            extrinsic_T: [ 0.0, 0.0, 0.0 ]   # ⚠ 仿真 IMU 与雷达同位置 (rig 里都在 z=0.4)
+            extrinsic_R: [ 1.0, 0.0, 0.0,
+                           0.0, 1.0, 0.0,
+                           0.0, 0.0, 1.0 ]
+
+        odometry:
+            publish_odometry_without_downsample: false
+
+        publish:
+            path_en: true
+            scan_publish_en: true
+            scan_bodyframe_pub_en: false
+
+        pcd_save:
+            # 建图: 累积世界系点云写成一个 PCD (退出/Ctrl-C 时落盘)
+            # ⚠ 落盘位置是编译期写死的 ROOT_DIR/PCD/ — 该目录已软链到桌面:
+            #   ~/桌面/scans.pcd   (本机磁盘 99% 满, 仿真建图前注意空间)
+            pcd_save_en: true
+            interval: -1         # -1 = 所有帧存成一个文件; >0 = 每 N 帧存一个 scans_i.pcd
