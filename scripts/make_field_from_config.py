@@ -251,14 +251,31 @@ def gen_field():
           cp['radius'], col('central_pillar_brown'))
 
     # ── 天空方块 12 块 (200mm, 落在地面) ──
+    # ── 天空方块: 每块 200³, **红蓝各半** ──
+    #   ✅ 2026-09-17 用户确认 "每块是红蓝各半"; 规则书 sky_block 条目原文也是
+    #      "colored red on one side and blue on the other" → 一块 = 两个半块
+    #   位置与分色方向均取自官方总装配 (见 config 注释)
+    #   positions 第三个数 = code: 1.0=沿y分 红南 / 2.0=沿y分 红北 /
+    #                              3.0=沿x分 红西 / 4.0=沿x分 红东
     step = sb['grid_step']
-    ox, oy = sb['grid_origin']
     pos = sb['positions']
+    hblock = 0.20
     for i in range(0, len(pos), 3):
-        x, y, c = pos[i], pos[i + 1], pos[i + 2]
-        key = 'sky_block_red_face' if c == 1 else 'sky_block_blue_face'
-        s.box('sky_%02d' % (i // 3), x - step / 2, y - step / 2, x + step / 2, y + step / 2,
-              0, 0.20, col(key))
+        x, y, code = pos[i], pos[i + 1], pos[i + 2]
+        x0, x1 = x - step / 2, x + step / 2
+        y0, y1 = y - step / 2, y + step / 2
+        if code == 1.0:            # 沿 y 分, 红南
+            red, blue = (x0, y0, x1, y), (x0, y, x1, y1)
+        elif code == 2.0:          # 沿 y 分, 红北
+            red, blue = (x0, y, x1, y1), (x0, y0, x1, y)
+        elif code == 3.0:          # 沿 x 分, 红西
+            red, blue = (x0, y0, x, y1), (x, y0, x1, y1)
+        else:                      # 4.0 沿 x 分, 红东
+            red, blue = (x, y0, x1, y1), (x0, y0, x, y1)
+        s.box('sky_%02d_0' % (i // 3), red[0], red[1], red[2], red[3],
+              0, hblock, col('sky_block_red_face'))
+        s.box('sky_%02d_1' % (i // 3), blue[0], blue[1], blue[2], blue[3],
+              0, hblock, col('sky_block_blue_face'))
 
     # ── 场地外圈围栏 (20mm × 50mm) —— 立在 11×11 净区**外面** ──
     s.box('fence_s', -fw, -fw, 11 + fw, 0.0, 0, fh, col('game_field_boundary'))

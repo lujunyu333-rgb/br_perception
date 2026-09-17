@@ -294,9 +294,15 @@ def build(path):
     for inst in insts:
         # ⚠ 多实体零件 (如栅栏 = 3~4 段墙) 的 ABSR items 里有多个实体, 必须**全部**收,
         #   早前 `break` 在第一个有点的实体上 → 只量到零件的一部分 (实测 2区栅栏 少读了南墙)
-        pts = []
+        pts, per_root = [], []
         for root in solid_roots(inst['rep']):
-            pts.extend(rep_points(root))
+            rp = rep_points(root)
+            if not rp:
+                continue
+            pts.extend(rp)
+            wp_ = [apply(inst['T'], q) for q in rp]
+            per_root.append(tuple(round(f([q[i] for q in wp_]), 1)
+                                  for i in range(3) for f in (min, max)) + (len(rp),))
         if not pts:
             continue
         wp = [apply(inst['T'], p) for p in pts]
@@ -314,6 +320,10 @@ def build(path):
             'u': sorted({round(v, 1) for v in xs}),
             'v': sorted({round(v, 1) for v in ys}),
             'w': sorted({round(v, 1) for v in zs}),
+            # 原始点集 (去重) —— 多实体零件 (如 天空块-红 = 全部红半块) 靠它还原每块矩形
+            'p': sorted({(round(a, 1), round(b, 1), round(c, 1)) for a, b, c in wp}),
+            # 每个实体 (solid) 各自的包围盒 —— 多实体零件 (天空块-红 = 全部红半块) 按实体拆开
+            'roots': sorted(per_root, key=lambda t: (t[1], t[5])),
         })
     return out
 
@@ -329,6 +339,11 @@ def dump(parts, needle):
         print(f"    X: {p['x'][0]:9.1f}~{p['x'][1]:9.1f}  去重 {len(p['u'])} 个: {p['u'][:24]}")
         print(f"    Y: {p['y'][0]:9.1f}~{p['y'][1]:9.1f}  去重 {len(p['v'])} 个: {p['v'][:24]}")
         print(f"    Z: {p['z'][0]:9.1f}~{p['z'][1]:9.1f}  去重 {len(p['w'])} 个: {p['w'][:24]}")
+        print(f"    实体 {len(p['roots'])} 个 (各自的包围盒, 已折算成场地坐标 m):")
+        for x0, x1, y0, y1, z0, z1, n in p['roots']:
+            print(f"        x[{5.5 + x0 / 1000:7.4f},{5.5 + x1 / 1000:7.4f}] "
+                  f"y[{5.5 - z1 / 1000:7.4f},{5.5 - z0 / 1000:7.4f}] "
+                  f"z[{(y0 - 25) / 1000:5.2f},{(y1 - 25) / 1000:5.2f}]  {n} 点")
 
 
 def placements(path):
