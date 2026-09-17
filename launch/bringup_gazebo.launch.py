@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
-Gazebo 仿真启动 — sensor_rig + Point-LIO (任务书 §4.1 / §十.2 的仿真验证通路)
+Gazebo 仿真启动 — fishbot 载具 + Point-LIO (任务书 §4.1 / §十.2 的仿真验证通路)
 
 链路:
-  Gazebo (br_field.world + sensor_rig)
+  Gazebo (br_field.world + fishbot)
     ├─ /livox/lidar/pointcloud (PointCloud2, 16线 10Hz) → pointcloud2_to_livox_custom
     │                                                       └→ /livox/lidar (CustomMsg) → Point-LIO
     ├─ /imu/data (100Hz)
-    └─ /ground_truth/odom ← planar_move 真值 (与 Point-LIO 估计对比用)
-  /cmd_vel → planar_move 驱动平台巡游 (scripts/sim_patrol.py)
+    ├─ /camera_front/image_raw, /camera_rear/image_raw (30Hz)
+    └─ /odom ← 车的差速插件
+  /cmd_vel → 车的差速插件驱动巡游 (scripts/sim_patrol.py)
 
 前置: source /opt/ros/humble/setup.bash && source ~/lio_ws/install/setup.bash
       && source ~/br_perception/install/setup.bash
@@ -61,14 +62,28 @@ def generate_launch_description():
     gzclient = ExecuteProcess(
         cmd=['gzclient'], output='screen', condition=IfCondition(gui))
 
-    # TF: base_link ← livox_frame (仿真里唯一缺的一段; odom←base_link 由 planar_move 发)
-    # 没有它 rviz 会报 "Fixed Frame [odom] ... livox_frame does not exist"
-    static_tf_livox = Node(
-        package='tf2_ros', executable='static_transform_publisher',
-        name='static_tf_base_to_livox',
-        arguments=['--x', '0.0', '--y', '0.0', '--z', '0.55',
-                   '--roll', '0.0', '--pitch', '0.0', '--yaw', '0.0',
-                   '--frame-id', 'base_link', '--child-frame-id', 'livox_frame'])
+    # TF: base_link ← 各传感器 (odom←base_link 由车的差速插件发)。
+    # Gazebo 不给固定关节发 TF, 这几段必须由 launch 广播, 否则 rviz 报
+    # "Fixed Frame [odom] ... livox_frame does not exist", fusion 的
+    # coordinate_transformer 也查不到外参。
+    # ⚠ 数值来自 models/fishbot/model.sdf 里各 <sensor> 的 <pose>, 改一边要同步另一边。
+    #   (config/fusion_params.yaml §static_tf 是给实车的占位值, 实车到位后以那边为准)
+    SENSOR_TF = [
+        ('livox_frame',        0.0,   0.0, 0.2419, 0.0, 0.0, 0.0),
+        ('imu_link',           0.0,   0.0, 0.1119, 0.0, 0.0, 0.0),
+        ('camera_front_frame', 0.1,   0.0, 0.1669, 0.0, 0.0, 0.0),
+        ('camera_rear_frame', -0.1,   0.0, 0.1669, 0.0, 0.0, 3.14159),
+        ('camera_depth_frame', 0.105, 0.0, 0.125,  0.0, 0.0, 0.0),
+    ]
+    static_tfs = [
+        Node(
+            package='tf2_ros', executable='static_transform_publisher',
+            name=f'static_tf_base_to_{frame}',
+            arguments=['--x', str(x), '--y', str(y), '--z', str(z),
+                       '--roll', str(r), '--pitch', str(p), '--yaw', str(y_) or '0.0',
+                       '--frame-id', 'base_link', '--child-frame-id', frame])
+        for frame, x, y, z, r, p, y_ in SENSOR_TF
+    ]
 
     # PointCloud2 → CustomMsg 桥接 (仿真雷达 → Point-LIO 的 Livox 通路)
     bridge = Node(
@@ -79,8 +94,9 @@ def generate_launch_description():
                      'scan_lines': 16,
                      'frame_rate_hz': 10.0,
                      'frame_id': 'livox_frame',
-                     # sensor_rig 的垂直 FOV = ±0.26 rad (±14.9°), 与实机 Mid-360
+                     # 仿真雷达垂直 FOV = ±0.26 rad (±14.9°), 与实机 Mid-360
                      # (-7°~+52°) 不同 → 必须显式传, 否则点会挤在少数几条 line 上
+                     # (models/fishbot/model.sdf 里 livox 传感器的 vertical 段)
                      'elev_min_deg': -14.9,
                      'elev_max_deg': 14.9}])
 
@@ -115,9 +131,9 @@ def generate_launch_description():
 
     return LaunchDescription([
         gui_arg, motion_arg, rviz_arg,
-        LogInfo(msg="[br_perception] Gazebo 仿真启动 — sensor_rig + Point-LIO (CustomMsg 桥接)"),
+        LogInfo(msg="[br_perception] Gazebo 仿真启动 — fishbot 载具 + Point-LIO (CustomMsg 桥接)"),
         set_model_path,
-        static_tf_livox,
+        *static_tfs,
         gzserver,
         gzclient,
         bridge,

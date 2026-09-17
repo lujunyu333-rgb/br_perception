@@ -50,7 +50,10 @@
             gravity_align: true
             gravity: [ 0.0, 0.0, -9.810 ]
             gravity_init: [ 0.0, 0.0, -9.810 ]
-            extrinsic_T: [ 0.0, 0.0, 0.0 ]   # ⚠ 仿真 IMU 与雷达同位置 (rig 里都在 z=0.4)
+            # ⚠ 雷达原点在 IMU 系下的位置 (Lidar_T_wrt_IMU, 见 point_lio
+            #    laserMapping.cpp:129)。fishbot: IMU z=0.1119, 雷达 z=0.2419
+            #    → Δz=+0.13 (models/fishbot/model.sdf)。旧 rig 两者同在 z=0.4, 故为 0。
+            extrinsic_T: [ 0.0, 0.0, 0.13 ]
             extrinsic_R: [ 1.0, 0.0, 0.0,
                            0.0, 1.0, 0.0,
                            0.0, 0.0, 1.0 ]
