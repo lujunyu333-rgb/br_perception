@@ -283,42 +283,30 @@ def gen_field():
     s.box('fence_w', -fw, 0.0, 0.0, 11.0, 0, fh, col('game_field_boundary'))
     s.box('fence_e', 11.0, 0.0, 11 + fw, 11.0, 0, fh, col('game_field_boundary'))
 
-    # ── 中轴隔墙 (x=5.5, 左右对称轴) ──
-    #   ★ 不得侵入共享区 (用户 2026-09-11): 中轴上的四处共享区必须留口 ——
-    #     南端天空棋盘 1200×1200、L1 共享带两端两个 1000×750、北端穆斯蒂卡共享区 1000×1000
-    cymin, cymax = 0.0, 11.0        # 跑满全场, 只让下面的共享区扣洞 (2026-09-11 用户标注更正)
-    xa, xb = 5.5 - cw / 2, 5.5 + cw / 2
-    #   规则书: 隔墙只跑 "Ground Area 和 Level 1" —— L2 顶上不该有, 且 L2 体积(z 0.6~0.9)
-    #   会把 L1 段埋掉, 所以 L2 覆盖的 y 区间也要从 L1 段里扣掉 (否则等于白建一段埋在里面的墙)
-    blocked = [tuple(sorted(sb['outer_y_range'])),
-               tuple(sorted(sh['ends']['south']['outer_y_range'])),
-               tuple(sorted(sh['ends']['north']['outer_y_range'])),
-               tuple(sorted((gy - gh[1], gy + gh[1]))),
-               tuple(sorted((l2y0, l2y1)))]
-    segs, cur = [], cymin
-    for g0, g1 in sorted(blocked):
-        if g1 <= cur:
-            continue
-        if g0 > cur:
-            segs.append((cur, min(g0, cymax)))
-        cur = max(cur, g1)
-    if cur < cymax:
-        segs.append((cur, cymax))
-    segs = [(a, b) for a, b in segs if b - a > 0.05]      # 去掉 20mm 级碎片
-
-    for i, (a, b) in enumerate(segs):
-        parts = []                                        # 墙跨过 L1 边界时切成地面段/L1 段
-        if a < l1y0:
-            parts.append((a, min(b, l1y0), 0.0))
-        if b > l1y0 and a < l1y1:
-            parts.append((max(a, l1y0), min(b, l1y1), L1H))
-        if b > l1y1:
-            parts.append((max(a, l1y1), b, 0.0))
-        for k, (p0, p1, zb) in enumerate(parts):
-            if p1 - p0 <= 0.05:               # 切分后的小碎片也丢掉 (20mm 级)
+    # ── 中轴隔墙 (x=5.5, 50mm 宽 × 100mm 高) ──
+    #   ✅ 2026-09-17 按官方实测: 地面段 y[1.85,9.25], L1 段 y[3.3,7.7] —— 直接给区间,
+    #   不再"跑满 y[0,11] 再减共享区"(旧做法在 y<1.85 / y>9.25 多建了两段, 官方本来就没有)
+    #   埋在 L1 台体 / L2 台体里的段落不建: 官方建模是连续跑过去被实体吞掉, 看不见, 等价
+    def minus_span(a, b, cuts):
+        """[a,b] 减去若干区间后剩下的段 (丢掉 20mm 级碎片)"""
+        out, cur = [], a
+        for c0, c1 in sorted(cuts):
+            if c1 <= cur or c0 >= b:
                 continue
-            s.box('divider_%d_%d' % (i, k), xa, p0, xb, p1, zb, zb + chh,
-                  col('center_divider_fence'))
+            if c0 > cur:
+                out.append((cur, min(c0, b)))
+            cur = max(cur, c1)
+        if cur < b:
+            out.append((cur, b))
+        return [(p, q) for p, q in out if q - p > 0.05]
+
+    xa, xb = 5.5 - cw / 2, 5.5 + cw / 2
+    for k, (p0, p1) in enumerate(
+            minus_span(cd['ground_y_range'][0], cd['ground_y_range'][1], [(l1y0, l1y1)])):
+        s.box('divider_g_%d' % k, xa, p0, xb, p1, 0.0, chh, col('center_divider_fence'))
+    for k, (p0, p1) in enumerate(
+            minus_span(cd['l1_y_range'][0], cd['l1_y_range'][1], [(l2y0, l2y1)])):
+        s.box('divider_l1_%d' % k, xa, p0, xb, p1, L1H, L1H + chh, col('center_divider_fence'))
 
     # ── L1 周界屏障 (50×100) —— **立在 6×6 台面里侧**, 外沿恰与台面边齐 ──
     #    ✅ 2026-09-17 按官方 `2区栅栏` 更正: 顶点去重 X = {±3000, ±2950} → 厚 50mm,

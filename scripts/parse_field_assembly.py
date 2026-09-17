@@ -427,7 +427,7 @@ def main():
 
     parts = build(args.step)
 
-    if args.dump:
+    if args.dump is not None:          # 传空串 = 全部零件 (空串是 falsy, 不能用 if args.dump)
         dump(parts, args.dump)
         return
 

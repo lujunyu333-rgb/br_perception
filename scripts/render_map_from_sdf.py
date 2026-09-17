@@ -138,8 +138,10 @@ def main():
 
     print()
     print('中轴 x=5.5 上每一段的状态 (z 高度区分地面/L1):')
+    # 阈值用 <= —— 中轴隔墙现在是**正好 50mm 宽** (2026-09-17 按官方 20→50mm),
+    # 原来的 `< 0.05` 会把隔墙整段滤掉, 这里列出来是空的 (看起来像"隔墙没了")
     ax_items = [i for i in items if i['kind'] == 'box'
-                and i['x0'] < 5.5 < i['x1'] and (i['x1']-i['x0']) < 0.05]
+                and i['x0'] < 5.5 < i['x1'] and (i['x1']-i['x0']) <= 0.05 + 1e-9]
     for i in sorted(ax_items, key=lambda d: d['y0']):
         print('   y[%6.2f,%6.2f] (长 %.2f)  z[%.2f,%.2f]  %s' %
               (i['y0'], i['y1'], i['y1']-i['y0'], i['z0'], i['z1'], i['name']))
