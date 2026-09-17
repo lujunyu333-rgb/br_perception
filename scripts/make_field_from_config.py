@@ -284,8 +284,10 @@ def gen_field():
     s.box('fence_e', 11.0, 0.0, 11 + fw, 11.0, 0, fh, col('game_field_boundary'))
 
     # ── 中轴隔墙 (x=5.5, 50mm 宽 × 100mm 高) ──
-    #   ✅ 2026-09-17 按官方实测: 地面段 y[1.85,9.25], L1 段 y[3.3,7.7] —— 直接给区间,
-    #   不再"跑满 y[0,11] 再减共享区"(旧做法在 y<1.85 / y>9.25 多建了两段, 官方本来就没有)
+    #   ✅ 2026-09-17 二次更正 (用户发现"地面中轴上靠围栏少了墙") —— 地面段**跑满 y[0,11]**,
+    #   减去 L1 台体 + 两处共享区 (config 的 ground_breaks_y)。L1 段 y[3.3,7.7]。
+    #   ⚠ 上一版给的是 y[1.85,9.25] —— 那是只读包围盒的错, 漏掉了藏在 `1区栅栏` 实体**内部**
+    #     的南北两截贴围栏短墙 (详见 config 里那段二次更正 + .tmp_pdf/probe_ring_entities.py)。
     #   埋在 L1 台体 / L2 台体里的段落不建: 官方建模是连续跑过去被实体吞掉, 看不见, 等价
     def minus_span(a, b, cuts):
         """[a,b] 减去若干区间后剩下的段 (丢掉 20mm 级碎片)"""
@@ -301,8 +303,10 @@ def gen_field():
         return [(p, q) for p, q in out if q - p > 0.05]
 
     xa, xb = 5.5 - cw / 2, 5.5 + cw / 2
+    # 地面段要减掉: L1 台体 (埋掉看不见) + 两处共享区 (天空棋盘 / 圣所, 官方本来就没墙)
+    gcut = [(l1y0, l1y1)] + [tuple(b) for b in cd.get('ground_breaks_y', [])]
     for k, (p0, p1) in enumerate(
-            minus_span(cd['ground_y_range'][0], cd['ground_y_range'][1], [(l1y0, l1y1)])):
+            minus_span(cd['ground_y_range'][0], cd['ground_y_range'][1], gcut)):
         s.box('divider_g_%d' % k, xa, p0, xb, p1, 0.0, chh, col('center_divider_fence'))
     for k, (p0, p1) in enumerate(
             minus_span(cd['l1_y_range'][0], cd['l1_y_range'][1], [(l2y0, l2y1)])):
@@ -347,12 +351,24 @@ def gen_field():
 WITH_SENSOR_RIG = False
 SENSOR_RIG_POSE = (5.5, 2.0, 1.3, 0.0)      # x y z yaw
 
+# 世界里要不要放**仿真载具** (fishbot, 顶替未完工的实车) —— 仿真里雷达/相机/IMU 的唯一来源。
+# ⚠ 模型本身是脚本外的**手工资产** (scripts/out/gazebo/models/fishbot/, 2026-09-17 VM 加的),
+#   本文件只负责写 <include> —— 模型不由本生成器重建。
+#   开关必须放这里: 2026-09-17 那版是直接手改 world 文件的, 一跑生成器就没了。
+WITH_VEHICLE = True
+VEHICLE_POSE = (0.35, 0.35, 0.005, 0.0)      # x y z yaw = 红方 TR 启动格中心 (start_zones.ours.tr)
+
 
 def gen_world():
     include_rig = ''
     if WITH_SENSOR_RIG:
         include_rig = ('    <include>\n      <uri>model://sensor_rig</uri>\n'
                        '      <pose>%s %s %s 0 0 %s</pose>\n    </include>\n' % SENSOR_RIG_POSE)
+    include_veh = ''
+    if WITH_VEHICLE:
+        include_veh = ('    <!-- 仿真载具 (顶替未完工的实车); 出生位姿 = 红区 TR 启动位中心 -->\n'
+                       '    <include>\n      <uri>model://fishbot</uri>\n'
+                       '      <pose>%s %s %s 0 0 %s</pose>\n    </include>\n' % VEHICLE_POSE)
     txt = '''<?xml version="1.0"?>
 <sdf version="1.6">
   <world name="br_field">
@@ -367,7 +383,7 @@ def gen_world():
       <collision name="c"><geometry><plane><normal>0 0 1</normal><size>30 30</size></plane></geometry></collision></link>
     </model>
     <include><uri>model://br_field</uri></include>
-''' + include_rig + '''  </world>
+''' + include_rig + include_veh + '''  </world>
 </sdf>
 '''
     with open(os.path.join(WORLD_DIR, 'br_field.world'), 'w', encoding='utf-8') as fd:

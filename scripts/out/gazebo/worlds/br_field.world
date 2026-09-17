@@ -12,10 +12,10 @@
       <collision name="c"><geometry><plane><normal>0 0 1</normal><size>30 30</size></plane></geometry></collision></link>
     </model>
     <include><uri>model://br_field</uri></include>
-    <!-- 仿真载具 (顶替未完工的实车); 出生位姿 = 红区起始位 start_ours_tr 中心 -->
+    <!-- 仿真载具 (顶替未完工的实车); 出生位姿 = 红区 TR 启动位中心 -->
     <include>
       <uri>model://fishbot</uri>
-      <pose>0.37 0.37 0.005 0 0 0</pose>
+      <pose>0.35 0.35 0.005 0 0 0.0</pose>
     </include>
   </world>
 </sdf>
