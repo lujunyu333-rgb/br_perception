@@ -174,10 +174,11 @@ def gen_field():
             s.box('start_%s_%s' % (side, tag), cx - hs, cy - hs, cx + hs, cy + hs,
                   0, PLATE, col(key), collide=False)
 
-    # ── L1 平台: 结构体比 6×6 大一个墙厚, 6×6 是净台面 ──
+    # ── L1 平台: 结构体**恰为 6×6** (2026-09-17 按官方 `二层基座` X/Z 均恰 ±3000 更正;
+    #    旧代码向外多长了一个墙厚 fw —— 官方无此外扩) ──
     #    ★ L1 台面按半场分色: 西(红) l1_area_red / 东(蓝) l1_area_blue (§14 两色都有, 早前整块刷红是错的)
-    s.box('l1_structure_w', l1x0 - fw, l1y0 - fw, 5.5, l1y1 + fw, 0, L1H, col('l1_area_red'))
-    s.box('l1_structure_e', 5.5, l1y0 - fw, l1x1 + fw, l1y1 + fw, 0, L1H, col('l1_area_blue'))
+    s.box('l1_structure_w', l1x0, l1y0, 5.5, l1y1, 0, L1H, col('l1_area_red'))
+    s.box('l1_structure_e', 5.5, l1y0, l1x1, l1y1, 0, L1H, col('l1_area_blue'))
     s.box('l1_play_w', l1x0, l1y0, 5.5, l1y1, L1H, L1H + PLATE, col('l1_area_red'), collide=False)
     s.box('l1_play_e', 5.5, l1y0, l1x1, l1y1, L1H, L1H + PLATE, col('l1_area_blue'), collide=False)
 
@@ -302,16 +303,19 @@ def gen_field():
             s.box('divider_%d_%d' % (i, k), xa, p0, xb, p1, zb, zb + chh,
                   col('center_divider_fence'))
 
-    # ── L1 周界屏障 (20×50) —— 立在 6×6 净台面**外面**; 西/东边在转运区处留口 ──
+    # ── L1 周界屏障 (50×100) —— **立在 6×6 台面里侧**, 外沿恰与台面边齐 ──
+    #    ✅ 2026-09-17 按官方 `2区栅栏` 更正: 顶点去重 X = {±3000, ±2950} → 厚 50mm,
+    #    外沿在 ±3000 (= L1 边), 即站在台面**内**, 不是外侧 (旧代码画在 x[2.48,2.50] 外面)。
+    #    西/东边在转运区处留口 (官方 Z 去重含 ±800 → y[3.7,4.7] 确有开口)。
     pbi = fw
     gap_y0 = P['transfer_zone']['ours']['corners'][1]
     gap_y1 = P['transfer_zone']['ours']['corners'][5]
-    s.box('l1pb_s', l1x0 - pbi, l1y0 - pbi, l1x1 + pbi, l1y0, L1H, L1H + fh, col('l1_perimeter_barrier'))
-    s.box('l1pb_n', l1x0 - pbi, l1y1, l1x1 + pbi, l1y1 + pbi, L1H, L1H + fh, col('l1_perimeter_barrier'))
-    s.box('l1pb_w_s', l1x0 - pbi, l1y0, l1x0, gap_y0, L1H, L1H + fh, col('l1_perimeter_barrier'))
-    s.box('l1pb_w_n', l1x0 - pbi, gap_y1, l1x0, l1y1, L1H, L1H + fh, col('l1_perimeter_barrier'))
-    s.box('l1pb_e_s', l1x1, l1y0, l1x1 + pbi, gap_y0, L1H, L1H + fh, col('l1_perimeter_barrier'))
-    s.box('l1pb_e_n', l1x1, gap_y1, l1x1 + pbi, l1y1, L1H, L1H + fh, col('l1_perimeter_barrier'))
+    s.box('l1pb_s', l1x0, l1y0, l1x1, l1y0 + pbi, L1H, L1H + fh, col('l1_perimeter_barrier'))
+    s.box('l1pb_n', l1x0, l1y1 - pbi, l1x1, l1y1, L1H, L1H + fh, col('l1_perimeter_barrier'))
+    s.box('l1pb_w_s', l1x0, l1y0 + pbi, l1x0 + pbi, gap_y0, L1H, L1H + fh, col('l1_perimeter_barrier'))
+    s.box('l1pb_w_n', l1x0, gap_y1, l1x0 + pbi, l1y1 - pbi, L1H, L1H + fh, col('l1_perimeter_barrier'))
+    s.box('l1pb_e_s', l1x1 - pbi, l1y0 + pbi, l1x1, gap_y0, L1H, L1H + fh, col('l1_perimeter_barrier'))
+    s.box('l1pb_e_n', l1x1 - pbi, gap_y1, l1x1, l1y1 - pbi, L1H, L1H + fh, col('l1_perimeter_barrier'))
 
     # ── L1 重试区 (薄板) ──
     rz = P['retry_zones']['l1']

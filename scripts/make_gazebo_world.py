@@ -121,9 +121,12 @@ def gen_field_model():
     return model_sdf
 
 
-# 传感器平台: 用户 2026-09-11 明确 **没用, 删掉** —— 默认不生成也不放进世界。
+# 传感器平台: 用户 2026-09-11 明确 **没用, 删掉**, 2026-09-17 再次确认删掉 ——
+# 默认不生成也不放进世界。世界里那根"接地的柱"就是它的机身 (0.5×0.5×1.2 from z=0)。
+# 代价: 仿真里没有 /livox/lidar/pointcloud + /camera_front|rear/image_raw + /imu/data,
+#       launch/bringup_gazebo.launch.py 与 scripts/sim_patrol.py 会收不到数据。
 # 想恢复(比如需要仿真里有雷达/相机话题)就设 True, 会重新生成 models/sensor_rig。
-WITH_SENSOR_RIG = True
+WITH_SENSOR_RIG = False
 
 # 整台平台的摆放位姿。z=1.3 是传感器头的世界高度, 机身从地面长上来 (见 gen_sensor_rig)
 SENSOR_RIG_POSE = {"x": 5.5, "y": 2.0, "z": 1.3, "yaw": 0.0}

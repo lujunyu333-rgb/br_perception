@@ -269,6 +269,10 @@ def build(path):
                 if p:
                     pts.append(p)
                     continue
+            # ⚠ AXIS2_PLACEMENT_3D 的原点不是几何点 —— 不排掉它, 零件包围盒会被
+            #   放置轴原点污染 (实测: 天空块的 bbox 被拉到轴原点 Z=4250, 比实体高 367mm)
+            if b.startswith('AXIS2_PLACEMENT_3D'):
+                continue
             if len(seen) > 200000:
                 break
             for r in refs.get(i, []):
@@ -288,11 +292,11 @@ def build(path):
 
     out = []
     for inst in insts:
+        # ⚠ 多实体零件 (如栅栏 = 3~4 段墙) 的 ABSR items 里有多个实体, 必须**全部**收,
+        #   早前 `break` 在第一个有点的实体上 → 只量到零件的一部分 (实测 2区栅栏 少读了南墙)
         pts = []
         for root in solid_roots(inst['rep']):
-            pts = rep_points(root)
-            if pts:
-                break
+            pts.extend(rep_points(root))
         if not pts:
             continue
         wp = [apply(inst['T'], p) for p in pts]
@@ -305,8 +309,26 @@ def build(path):
             'x': (min(xs), max(xs)),
             'y': (min(ys), max(ys)),
             'z': (min(zs), max(zs)),
+            # 世界坐标去重后保留一位小数 —— 供 --dump 看"厚度/内外面"这类包围盒答不了的问题
+            # (矩形环的 bbox 只给外沿, 环厚要看顶点的 X/Z 各出现哪几个值)
+            'u': sorted({round(v, 1) for v in xs}),
+            'v': sorted({round(v, 1) for v in ys}),
+            'w': sorted({round(v, 1) for v in zs}),
         })
     return out
+
+
+def dump(parts, needle):
+    """按零件名子串过滤, 打印去重后的世界坐标分量 (mm) —— 用来量厚度/内外沿"""
+    hit = [p for p in parts if needle in p['name']]
+    if not hit:
+        print(f'没有匹配 {needle!r} 的零件')
+        return
+    for p in hit:
+        print(f"{p['name']}  ({p['n']} 点)")
+        print(f"    X: {p['x'][0]:9.1f}~{p['x'][1]:9.1f}  去重 {len(p['u'])} 个: {p['u'][:24]}")
+        print(f"    Y: {p['y'][0]:9.1f}~{p['y'][1]:9.1f}  去重 {len(p['v'])} 个: {p['v'][:24]}")
+        print(f"    Z: {p['z'][0]:9.1f}~{p['z'][1]:9.1f}  去重 {len(p['w'])} 个: {p['w'][:24]}")
 
 
 def placements(path):
@@ -382,11 +404,18 @@ def placements(path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('step')
+    ap.add_argument('--dump', metavar='零件名子串',
+                    help='只打印匹配零件的去重坐标分量 (mm) —— 量厚度/内外面用')
     ap.add_argument('--check', action='store_true',
                     help='与 config/field_geometry.yaml 对表')
     args = ap.parse_args()
 
     parts = build(args.step)
+
+    if args.dump:
+        dump(parts, args.dump)
+        return
+
     if parts:
         print(f"装配体零件 {len(parts)} 个 —— 世界坐标包围盒 (mm, 模型原始坐标)")
         print()
