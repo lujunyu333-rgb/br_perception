@@ -25,6 +25,8 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common filters segmentation search features)
 find_package(Eigen3 REQUIRED)
+# serial_manager 用 std::thread —— Linux 上必须显式链 pthread
+find_package(Threads REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
@@ -38,15 +40,17 @@ find_package(livox_ros_driver2 REQUIRED)
 # 自定义消息生成
 # ═══════════════════════════════════════════════════════════════════════════
 rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/MustikaStatus.msg"
   "msg/PillarStatus.msg"
   "msg/Obstacle.msg"
   "msg/BuildingSpot.msg"
   "msg/PerceptionFrame.msg"
+  "msg/LidarResult.msg"
+  "msg/MasterCommand.msg"
   "msg/CameraMustika.msg"
   "msg/CameraBuildingSpot.msg"
   "msg/CameraPillar.msg"
-  DEPENDENCIES geometry_msgs builtin_interfaces diagnostic_msgs
+  # std_msgs: PerceptionFrame 与 LidarResult 都用了 std_msgs/Header
+  DEPENDENCIES geometry_msgs std_msgs builtin_interfaces diagnostic_msgs
 )
 
 # 获取 C++ typesupport 链接目标（供组件库链接）
@@ -58,6 +62,8 @@ include_directories(
   src/camera/include
   src/vision/include
   src/fusion/include
+  src/utils/include
+  src/communication/include
   ${PCL_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
 )
@@ -206,10 +212,15 @@ ament_target_dependencies(coordinate_transformer
 #     实机: 驱动 CustomMsg → PointCloud2 → 感知管线 (§3)
 # ═══════════════════════════════════════════════════════════════════════════
 # livox_ros_driver2 是接口包: 显式链接其 C++ typesupport (与本仓库自有消息同做法)
+#
+# ⚠ 上面那句 find_package(... REQUIRED) 保证的是"**包**存在", 而**不保证**它导出了
+#   下面这个名字的**目标** —— 包找得到但目标不存在是常见情况 (取决于对方怎么构建/安装)。
+#   所以判 TARGET 不是多余的死代码, 是两件不同的事。
 if(TARGET livox_ros_driver2__rosidl_typesupport_cpp)
   set(livox_cpp_typesupport livox_ros_driver2__rosidl_typesupport_cpp)
 else()
-  message(WARNING "livox_ros_driver2 未导出 C++ typesupport 目标 — "
+  message(WARNING "livox_ros_driver2 已找到, 但它未导出 C++ typesupport 目标 "
+                  "(livox_ros_driver2__rosidl_typesupport_cpp) — "
                   "桥接节点可能在链接期报 CustomMsg 符号未定义")
   set(livox_cpp_typesupport "")
 endif()
@@ -228,6 +239,58 @@ ament_target_dependencies(pointcloud2_to_livox_custom
 target_link_libraries(pointcloud2_to_livox_custom
   ${PCL_LIBRARIES}
   ${livox_cpp_typesupport})
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 14. CommonUtils — 通用工具库 (任务书 §七, 模块 2/3/…)
+#     ⚠ **刻意不挂 ament_target_dependencies** —— 不依赖 ROS / PCL / OpenCV,
+#     只依赖 Eigen3 (仅头文件库, 已在文件上方 find_package 过)。
+#     这是设计文档 §4 硬性规则第 1 条「算法类不碰 ROS」的直接体现, 也使得
+#     该库可被 gtest 直接单测 (§11.1), 不需要起 ROS。
+#     ⚠ 后续新增的 src/utils/ 模块加进本目标的源文件列表即可。
+# ═══════════════════════════════════════════════════════════════════════════
+add_library(common_utils SHARED
+  src/utils/timer_utils.cpp
+  src/utils/geometry_utils.cpp)
+# 头文件路径**按目标声明**, 不走全局 include_directories ——
+# 于是"本库不依赖 PCL/OpenCV"这条设计约束在 CMake 层面就成立, 不只是注释里的承诺。
+# PUBLIC: 链接 common_utils 的目标 (两个单测) 自动继承该路径, 无需各自再声明。
+target_include_directories(common_utils PUBLIC src/utils/include)
+# Eigen 出现在 geometry_utils.hpp 的公开签名里 (Point3/Isometry3d), 故按 PUBLIC 传播
+target_link_libraries(common_utils Eigen3::Eigen)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 15. Communication — 协议编解码 + 串口传输 (任务书 §5.1 / §5.2 / §5.3)
+#     · encoder/decoder 共用同一份 Crc16 与帧格式定义 (decoder 头文件直接 include
+#       encoder 头文件), 拆开只会多一层没必要的依赖边
+#     · serial_manager 内部持有 ProtocolDecoder (拼帧只实现一处), 故同属一个库
+#     用 ROS 消息类型作输入契约, 但**不含节点/订阅** —— 可直接单测, 不需要 spin。
+#     ⚠ serial_manager.cpp 是 **Linux/POSIX termios**, Windows 下编不过。
+# ═══════════════════════════════════════════════════════════════════════════
+add_library(communication SHARED
+  src/communication/protocol_encoder.cpp
+  src/communication/protocol_decoder.cpp
+  src/communication/serial_manager.cpp)
+ament_target_dependencies(communication
+  rclcpp std_msgs geometry_msgs diagnostic_msgs)
+target_link_libraries(communication
+  ${cpp_typesupport_target}
+  Threads::Threads)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 16. CommNode — 通信薄壳 (任务书 §5.4)
+#     做成**组件**而不是单体可执行: 容器化时直接挂进容器 C, 不必改代码。
+#     刻意不走 add_lidar_component 宏 —— 那个宏无条件链 PCL, 通信层不需要。
+# ═══════════════════════════════════════════════════════════════════════════
+add_library(comm_node_component SHARED
+  src/communication/comm_node.cpp)
+ament_target_dependencies(comm_node_component
+  rclcpp rclcpp_components diagnostic_msgs std_msgs geometry_msgs)
+target_link_libraries(comm_node_component
+  communication
+  ${cpp_typesupport_target})
+rclcpp_components_register_node(comm_node_component
+  PLUGIN "br_perception::communication::CommNode"
+  EXECUTABLE comm_node)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 测试工具: 模拟点云发布者 (无雷达时用于开发测试)
@@ -249,6 +312,24 @@ if(BUILD_TESTING)
   target_link_libraries(test_coordinate_transformer coordinate_transformer)
   ament_target_dependencies(test_coordinate_transformer
     rclcpp geometry_msgs nav_msgs sensor_msgs std_msgs)
+
+  # 纯算法库 — 无 ROS 依赖, 故无 ament_target_dependencies
+  ament_add_gtest(test_timer_utils test/test_timer_utils.cpp)
+  target_link_libraries(test_timer_utils common_utils)
+
+  ament_add_gtest(test_geometry_utils test/test_geometry_utils.cpp)
+  target_link_libraries(test_geometry_utils common_utils)
+
+  # 用消息类型作输入但不起节点 —— 故只需 ament_target_dependencies, 不需要 spin
+  ament_add_gtest(test_protocol_encoder test/test_protocol_encoder.cpp)
+  target_link_libraries(test_protocol_encoder communication)
+  ament_target_dependencies(test_protocol_encoder
+    rclcpp std_msgs geometry_msgs diagnostic_msgs)
+
+  ament_add_gtest(test_protocol_decoder test/test_protocol_decoder.cpp)
+  target_link_libraries(test_protocol_decoder communication)
+  ament_target_dependencies(test_protocol_decoder
+    rclcpp std_msgs geometry_msgs diagnostic_msgs)
 endif()
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -278,6 +359,7 @@ install(TARGETS
   mustika_detector
   building_spot_detector
   pillar_detector
+  comm_node
   DESTINATION lib/${PROJECT_NAME})
 
 # 组件库 (.so), rclcpp_components_register_node 只注册不安装
@@ -294,6 +376,9 @@ install(TARGETS
   building_spot_detector_component
   pillar_detector_component
   coordinate_transformer
+  common_utils
+  communication
+  comm_node_component
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin)
@@ -307,6 +392,12 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/sim_patrol.py")
     DESTINATION share/${PROJECT_NAME}/scripts)
 else()
   message(WARNING "找不到 scripts/sim_patrol.py — bringup_gazebo 的自动巡游会起不来")
+endif()
+
+# ── 台架工具: 伪下位机 (无硬件时通信层的唯一对端) ──
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/fake_master.py")
+  install(FILES scripts/fake_master.py
+    DESTINATION share/${PROJECT_NAME}/scripts)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/out/gazebo")

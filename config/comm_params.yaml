@@ -1,0 +1,84 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# comm_node 参数 (任务书 §5.3 / §5.4)
+#
+# ⚠ 本文件里有 **3 组未冻结参数** —— 没有下位机可确认, 现在都是挑出来的默认值。
+#   协议冻结后**只改这个文件**, 不必动 C++:
+#     1. CRC16 参数 (任务书 §5.1 只说"多项式从配置读取", 没给具体值)
+#     2. 串口物理层 (波特率/数据位/停止位/校验/流控)
+#     3. 单帧容量上界 (任务书给的是 16/10, 需与下位机对齐)
+#
+#   另有一条**改不了、必须动代码**的未冻结项: "seq 是否跨 PacketType 共享"。
+#   protocol_encoder 目前假设共享 (心跳/调试帧也消耗序号)。若下位机确认独立编号,
+#   需要给每种类型各维护一个计数器。
+#
+# ⚠ 改了本文件的 CRC 参数后, **跑这一条**:
+#
+#       python3 scripts/fake_master.py --check-config config/comm_params.yaml
+#
+#   它会读出本文件里的 crc16_* 参数, 匹配到对应的标准变体, 并核对 check 值。
+#   四条标准变体 (输入 ASCII "123456789"):
+#     CCITT-FALSE {0x1021, 0xFFFF, false, false, 0x0000} → 0x29B1
+#     XMODEM      {0x1021, 0x0000, false, false, 0x0000} → 0x31C3
+#     MODBUS      {0x8005, 0xFFFF, true,  true,  0x0000} → 0x4B37
+#     KERMIT      {0x1021, 0x0000, true,  true,  0x0000} → 0x2189
+#
+#   (别跟 --selftest 混: 那个只验证脚本自己的 CRC 实现, **不读本文件**。)
+#
+# ⚠ 本文件里每个参数的取值应与 comm_node.cpp 的 declare_parameter 默认值一致 ——
+#   不一致的话, 传不传 --params-file 会得到不同行为。改一处记得改另一处。
+# ═══════════════════════════════════════════════════════════════════════════
+
+comm_node:
+  ros__parameters:
+    # ── 话题 ──
+    # ⚠ QoS **写死在代码里, 不是参数** (改 QoS 需动 comm_node.cpp):
+    #     · /perception/output 的订阅 = SensorDataQoS(BEST_EFFORT)
+    #       —— 兼容 RELIABLE 与 BEST_EFFORT 两种发布者。反过来不行:
+    #       本节点若用 RELIABLE 去订阅别人的 BEST_EFFORT 发布, 会**静默收不到**
+    #       (本仓库踩过一次, 见 doc/容器化重构_任务清单 §已知坑 1)
+    #     · from_master / diagnostics 两个发布者 = 默认 RELIABLE depth 10
+    output_topic: /perception/output
+    from_master_topic: /communication/from_master
+    diagnostics_topic: /communication/diagnostics
+    diagnostics_interval_sec: 1.0
+
+    # ── 串口物理层 (⚠ 未冻结: 待与下位机确认) ──
+    serial_device: /dev/ttyUSB0
+    serial_baud_rate: 115200
+    serial_data_bits: 8
+    serial_stop_bits: 1
+    serial_parity: "N"          # N 无 / E 偶 / O 奇 (大小写不敏感, 实现里会转大写)
+    serial_flow_control: false
+
+    # ── 协议 CRC16 (⚠ 未冻结)。默认 = CRC-16/CCITT-FALSE ──
+    # ⚠ **值用十进制写** —— ROS 2 的参数解析器对 `0x` 十六进制前缀的支持没有把握,
+    #   万一不认, 症状是节点启动时 declare_parameter<int> 抛异常、整个节点起不来。
+    #   右边注释是等价的十六进制, 对照协议表时看注释即可。
+    # 三项都是 16 位, 取值 [0, 65535]。
+    crc16_polynomial: 4129      # 0x1021
+    crc16_initial: 65535        # 0xFFFF
+    crc16_reflect_in: false
+    crc16_reflect_out: false
+    crc16_xor_out: 0            # 0x0000
+
+    # ── 单帧容量上界 (⚠ 未冻结) ──
+    # 改这里, encoder 的缓冲区预留与 decoder 的长度闸门都会自动跟随
+    # (ProtocolConfig::max_payload_bytes 是从这两个字段算出来的, 不是另写常量)。
+    # ⚠ 但上界受串口吞吐限制: 单帧字节数 ≈ 26 + (1+4N) + (1+18M)。
+    #   115200 bps 下 200 字节约 17ms —— 想同时保持 send_rate_hz=50 不拥塞,
+    #   建议 N ≤ 32, M ≤ 20。当前 16/10 是任务书给的保守值, 别随手调大。
+    max_building_spots: 16
+    max_obstacles: 10
+
+    # ── 时序 ──
+    send_rate_hz: 50                # 发送线程轮询频率; 心跳精度受它限制
+    heartbeat_interval_ms: 1000     # ≤0 = 不发心跳
+    reconnect_interval_ms: 1000     # 断线重试间隔
+    receive_poll_timeout_ms: 100    # 接收线程单次 poll 等待上限
+    crc_alarm_threshold: 10         # 连续 CRC 错误达此数 → crc_alarm
+
+    # ── 调试 (⚠ 比赛时必须为 false) ──
+    # 开启后额外发送 0x7F ASCII 状态帧。下位机侧对该类型的处理没有规格,
+    # 且调试帧与感知帧共享发送队列和帧序号空间。
+    debug_mode: false
+    debug_interval_sec: 2.0
