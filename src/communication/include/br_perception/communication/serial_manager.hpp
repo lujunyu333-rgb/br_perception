@@ -83,6 +83,12 @@ struct SerialConfig {
   int heartbeat_interval_ms{1000};
 
   int reconnect_interval_ms{1000};   ///< 断线后重试间隔 (任务书 §5.3: 1s)
+
+  /// 接收线程单次 poll() 的等待上限 [ms]。**必须 ≥ 1** —— 0 或负值会让 poll
+  /// 立刻超时返回, 接收线程退化成忙等 (CPU 100%)。构造时会夹到 ≥1。
+  /// 链路上没有下行数据时这个超时是**正常路径** (不是错误): 醒来后 close 掉 dup 的
+  /// fd 再重取, 顺带让断线能被及时察觉。
+  int receive_poll_timeout_ms{100};
 };
 
 /// @brief 收发统计。纯数据 —— 派生量 (如频率) 由调用方自己按 uptime_ms 算。
@@ -101,6 +107,17 @@ struct SerialStats {
   std::uint64_t crc_errors{0};         ///< 累计 CRC 错误 (来自 ProtocolDecoder)
   std::uint64_t callback_errors{0};    ///< 上层回调抛异常的次数 (见 FrameCallback)
   std::uint64_t write_errors{0};       ///< 写失败次数
+
+  /// 因序号不新被丢弃的下行帧 (迟到的重传 / 重复帧)。
+  /// ⚠ **这些帧既不会进 callback, 也不计入 frames_received** —— 症状是
+  ///   "bytes_received 在涨、frames_received 不动、crc_errors 为 0"。
+  ///   没有这一项时那种丢弃是完全静默的, 只能靠 bytes/frames 对不上来猜。
+  /// ⚠ 主控重启后从 0 重新编号也会落到这里 (见 ProtocolDecoder::reset 的说明)。
+  std::uint64_t stale_frames{0};
+  /// 上述 stale 帧里序号跨度有歧义的部分 (差值落在 [128,255])
+  std::uint64_t ambiguous_seq_frames{0};
+  /// 判定"主控重新编号"并自动恢复的次数 (见 ProtocolDecoder::renumber_recoveries)
+  std::uint64_t renumber_recoveries{0};
 
   /// 重连尝试次数。与下一项一起看才有意义:
   ///   attempts 高 + succeeded 低 → 硬件/驱动问题 (设备根本没回来)
@@ -241,6 +258,14 @@ private:
 
   // ── 接收 ──
   ProtocolDecoder decoder_;
+
+  /// 链路世代号: 每次**成功重连** +1。
+  ///
+  /// ⚠ 发送线程 (reconnect 的执行者) 只 bump 这个原子量, **绝不直接碰 decoder_** ——
+  ///   decoder_ 的唯一所有者是接收线程 (见 receive_loop 里同步统计的注释),
+  ///   跨线程调它的 reset() 是数据竞争, 不是"提前清一下"。
+  ///   接收线程发现世代号变了, 自己去清解码器的链路状态。
+  std::atomic<std::uint64_t> link_generation_{0};
 
   // ── 统计 (由各自线程写, 读时加锁取快照) ──
   mutable std::mutex stats_mutex_;

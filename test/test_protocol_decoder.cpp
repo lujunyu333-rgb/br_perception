@@ -315,7 +315,10 @@ TEST(ParseResetTest, 解析地面启动区与L1重试区)
   // reserve 两字节必须**原样**留在 payload 里 —— 协议里它是"将来扩展位"。
   // 解码器若顺手把它们吃掉, 下位机将来启用扩展位时就是静默失联。
   ASSERT_EQ(kResetPayloadBytes, f1[0].payload.size());
-  EXPECT_EQ(0, f1[0].payload[0]);
+  // 依据: 任务书 §5.1 v1.6 的 0x10 逐字节布局 = reset_zone_id / reserve×2 / CRC。
+  //   payload[0] **就是 zone_id**, 喂进去的是 1, 解出来也是 1 —— 解码器只读不改,
+  //   payload 原样交回调用方 (见下方"未定义的zone_id被拒绝但原值可见")。
+  EXPECT_EQ(1, f1[0].payload[0]);
   EXPECT_EQ(0xAA, f1[0].payload[1]);
   EXPECT_EQ(0xBB, f1[0].payload[2]);
 }
@@ -376,7 +379,12 @@ TEST(SequenceGateTest, 迟到的旧帧被丢弃)
   EXPECT_TRUE(dec.feed(build_frame(3, kMasterPacketBrReset, reset_payload(0))).empty());
   EXPECT_EQ(1u, dec.stale_frames());
   EXPECT_EQ(1u, dec.frames_ok());
-  EXPECT_EQ(0u, dec.ambiguous_seq_frames());          // 差 2, 不歧义
+  // ⚠ 虽然"只晚了 2 帧", 但 uint8 下它与"超前 254 帧"是**同一串字节** ——
+  //   而后者正是"一次性丢了 ≥128 帧"这个本该报警的场景, 分不清就必须计入。
+  //   依据: 本模块头文件对 ambiguous_seq_frames 的契约是"差值落在 [128,255]",
+  //   而 stale 帧的无符号差值恒落在 [128,255] (差值 0 是重复帧, 另计)。
+  //   (按"实际差 2 帧就不歧义"理解会漏掉 0→200 那类真丢帧, 见下面那条用例。)
+  EXPECT_EQ(1u, dec.ambiguous_seq_frames());
 }
 
 TEST(SequenceGateTest, 重复帧被丢弃)
@@ -462,6 +470,128 @@ TEST(SequenceGateTest, 第一帧永远被接受)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// 主控重新编号 (自动恢复)
+//
+// ⚠ 判据必须**同时**看"从 0 起"和"逐 1 递增", 不能只看连串长度 —— 主控重传一个
+//   窗口 (10,11,12) 同样递增且连续, 只看长度就会把本该丢弃的旧帧恢复成新帧,
+//   那直接违反任务书 §5.2「帧号已更新则丢弃旧的」。下面三条负例就是钉这个的。
+// ═══════════════════════════════════════════════════════════════════════════
+
+TEST(RenumberTest, 主控从零重新编号后自动恢复)
+{
+  ProtocolDecoder dec;
+  // 先跑到 100: 此时 seq=0 相对 100 被判陈旧 (判据: (256-last_seq_) >= 128),
+  // 而按旧规则要一路白丢到 seq=101 才自然恢复 —— 正是本判据要解决的场景
+  ASSERT_EQ(1u, dec.feed(build_frame(100, kMasterPacketBrReset, reset_payload(0))).size());
+
+  // 主控重启从 0 重新编号: 0 / 1 仍按旧规则丢弃
+  EXPECT_TRUE(dec.feed(build_frame(0, kMasterPacketBrReset, reset_payload(0))).empty());
+  EXPECT_TRUE(dec.feed(build_frame(1, kMasterPacketBrReset, reset_payload(0))).empty());
+  EXPECT_EQ(2u, dec.stale_frames());
+  EXPECT_EQ(0u, dec.renumber_recoveries());
+
+  // 第 3 帧凑满连串 → 判定重新编号, 且**这一帧本身**按新编号接受
+  const auto f = dec.feed(build_frame(2, kMasterPacketBrReset, reset_payload(0)));
+  ASSERT_EQ(1u, f.size());
+  EXPECT_EQ(2, f[0].seq);
+  EXPECT_EQ(1u, dec.renumber_recoveries());
+  EXPECT_EQ(2u, dec.frames_ok());        // 100 那帧 + 恢复回来的 2
+  EXPECT_EQ(2u, dec.stale_frames());     // 恢复帧不计入 stale, 仍是 0/1 两帧
+  EXPECT_EQ(2, dec.last_seq());
+
+  // 恢复后按新编号正常推进
+  ASSERT_EQ(1u, dec.feed(build_frame(3, kMasterPacketBrReset, reset_payload(0))).size());
+  EXPECT_EQ(2u, dec.stale_frames());
+}
+
+TEST(RenumberTest, 粘包时恢复不能丢掉同批次的后续帧)
+{
+  // ⚠ 恢复发生在**解析途中**, 而那些字节可能是一批读进来的 (粘包), 缓冲区里
+  //   还躺着本次 feed() 尚未处理的后续帧。恢复若顺手清了缓冲区 (例如图省事调
+  //   reset_link_state), 这批剩下的帧会连同字节一起消失 —— 而且 CRC / 垃圾字节
+  //   两个计数都正常, 完全静默。实测 20 帧一批会丢 17 帧, 单测每帧单独喂时抓不到。
+  ProtocolDecoder dec;
+  ASSERT_EQ(1u, dec.feed(build_frame(100, kMasterPacketBrReset, reset_payload(0))).size());
+
+  std::vector<std::uint8_t> batch;
+  for (std::uint8_t s : {0u, 1u, 2u, 3u, 4u}) {
+    append(batch, build_frame(s, kMasterPacketBrReset, reset_payload(0)));
+  }
+
+  const auto frames = dec.feed(batch);
+  // 0/1 判陈旧丢弃; 2 触发恢复并被接受; 3/4 必须照常解出
+  ASSERT_EQ(3u, frames.size());
+  EXPECT_EQ(2, frames[0].seq);
+  EXPECT_EQ(3, frames[1].seq);
+  EXPECT_EQ(4, frames[2].seq);
+  EXPECT_EQ(1u, dec.renumber_recoveries());
+  EXPECT_EQ(2u, dec.stale_frames());
+  EXPECT_EQ(4u, dec.frames_ok());          // 100 + 2 + 3 + 4
+  EXPECT_EQ(0u, dec.pending_bytes());      // 本批全部消耗干净, 没被吞掉
+}
+
+TEST(RenumberTest, 任意序号的递增连串不算重新编号)
+{
+  ProtocolDecoder dec;
+  ASSERT_EQ(1u, dec.feed(build_frame(100, kMasterPacketBrReset, reset_payload(0))).size());
+
+  // 主控重传一个窗口 (10,11,12): 递增且连续, 但**不从 0 起** → 必须全部丢弃
+  for (std::uint8_t s : {10u, 11u, 12u}) {
+    EXPECT_TRUE(dec.feed(build_frame(s, kMasterPacketBrReset, reset_payload(0))).empty())
+        << "seq = " << static_cast<int>(s);
+  }
+  EXPECT_EQ(3u, dec.stale_frames());
+  EXPECT_EQ(0u, dec.renumber_recoveries());
+  EXPECT_EQ(1u, dec.frames_ok());
+}
+
+TEST(RenumberTest, 重复帧连串不算重新编号)
+{
+  ProtocolDecoder dec;
+  ASSERT_EQ(1u, dec.feed(build_frame(5, kMasterPacketBrReset, reset_payload(0))).size());
+
+  // 同一序号连发: 序号**不变**, 永远凑不成"逐 1 递增"
+  for (int i = 0; i < 4; ++i) {
+    EXPECT_TRUE(dec.feed(build_frame(5, kMasterPacketBrReset, reset_payload(0))).empty());
+  }
+  EXPECT_EQ(4u, dec.stale_frames());
+  EXPECT_EQ(0u, dec.renumber_recoveries());
+}
+
+TEST(RenumberTest, 序号很小时不恢复以免把重复帧当新帧)
+{
+  ProtocolDecoder dec;
+  ASSERT_EQ(1u, dec.feed(build_frame(2, kMasterPacketBrReset, reset_payload(0))).size());
+
+  // 0/1 像新编号的开头, 但 2 是**已经收过的重复帧**。此时按旧规则再等一帧 (seq=3)
+  // 就自然恢复, 判据没必要出手 —— 出手反而会把重复帧 2 恢复成新帧, 违反 §5.2。
+  EXPECT_TRUE(dec.feed(build_frame(0, kMasterPacketBrReset, reset_payload(0))).empty());
+  EXPECT_TRUE(dec.feed(build_frame(1, kMasterPacketBrReset, reset_payload(0))).empty());
+  EXPECT_TRUE(dec.feed(build_frame(2, kMasterPacketBrReset, reset_payload(0))).empty());
+  EXPECT_EQ(0u, dec.renumber_recoveries());
+  EXPECT_EQ(3u, dec.stale_frames());
+
+  // 自然恢复: 3 比 2 新, 直接接受
+  ASSERT_EQ(1u, dec.feed(build_frame(3, kMasterPacketBrReset, reset_payload(0))).size());
+  EXPECT_EQ(2u, dec.frames_ok());
+}
+
+TEST(RenumberTest, 恢复后连串被清空不会连续触发)
+{
+  ProtocolDecoder dec;
+  ASSERT_EQ(1u, dec.feed(build_frame(100, kMasterPacketBrReset, reset_payload(0))).size());
+  dec.feed(build_frame(0, kMasterPacketBrReset, reset_payload(0)));
+  dec.feed(build_frame(1, kMasterPacketBrReset, reset_payload(0)));
+  ASSERT_EQ(1u, dec.feed(build_frame(2, kMasterPacketBrReset, reset_payload(0))).size());
+  ASSERT_EQ(1u, dec.renumber_recoveries());
+
+  // 恢复后 last_seq_=2。再来一帧 1 (落后于 2) 只是普通 stale, 不该再次恢复
+  EXPECT_TRUE(dec.feed(build_frame(1, kMasterPacketBrReset, reset_payload(0))).empty());
+  EXPECT_EQ(1u, dec.renumber_recoveries());
+  EXPECT_EQ(3u, dec.stale_frames());
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // 重置
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -497,6 +627,34 @@ TEST(ResetTest, reset_counters只清计数器不动序号状态)
   // 旧帧仍被判 stale —— 证明状态真的没被清
   EXPECT_TRUE(dec.feed(build_frame(3, kMasterPacketBrReset, reset_payload(0))).empty());
   EXPECT_EQ(1u, dec.stale_frames());
+}
+
+TEST(ResetTest, reset_link_state只清链路状态保留计数器)
+{
+  ProtocolDecoder dec;
+  ASSERT_EQ(1u, dec.feed(build_frame(5, kMasterPacketBrReset, reset_payload(0))).size());
+  EXPECT_TRUE(dec.feed(build_frame(3, kMasterPacketBrReset, reset_payload(0))).empty());
+  ASSERT_EQ(1u, dec.frames_ok());
+  ASSERT_EQ(1u, dec.stale_frames());
+
+  // 缓冲里塞半截帧 —— 换 fd 之后它必然是垃圾 (新链路的字节从帧头重新开始)
+  const auto half = build_frame(9, kMasterPacketBrReset, reset_payload(0));
+  ASSERT_TRUE(dec.feed(half.data(), half.size() - 2).empty());
+  ASSERT_GT(dec.pending_bytes(), 0u);
+
+  dec.reset_link_state();
+
+  // 链路状态清了……
+  EXPECT_FALSE(dec.has_last_seq());
+  EXPECT_EQ(0u, dec.pending_bytes());
+  // ……但计数器**原样保留**: serial_manager 拿 frames_ok() 直接赋值给累计统计,
+  //   这里若归零, 诊断里的 frames_received 会莫名其妙掉回去。
+  EXPECT_EQ(1u, dec.frames_ok());
+  EXPECT_EQ(1u, dec.stale_frames());
+
+  // 序号状态确实清了: 0 号重新被接受 (重连后对端可能从 0 重新编号)
+  ASSERT_EQ(1u, dec.feed(build_frame(0, kMasterPacketBrReset, reset_payload(0))).size());
+  EXPECT_EQ(2u, dec.frames_ok());
 }
 
 TEST(ResetTest, 重置前的半截帧不会污染重置后的解析)

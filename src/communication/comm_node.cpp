@@ -238,6 +238,14 @@ void CommNode::publish_diagnostics()
       kv("frames_sent", to_str(s.frames_sent)),
       kv("heartbeats_sent", to_str(s.heartbeats_sent)),
       kv("frames_received", to_str(s.frames_received)),
+      // ⚠ 这两项是"收到了但没给上层"的唯一证据: frames_received 不动时,
+      //   stale_frames 在涨 = 被序号门控丢了 (重传/重复/主控重启),
+      //   而不是链路没数据 (那要看 bytes_received 是否也不动)。
+      kv("stale_frames", to_str(s.stale_frames)),
+      kv("ambiguous_seq_frames", to_str(s.ambiguous_seq_frames)),
+      // 非零 = 主控重启过 (或判据误触)。它和 stale_frames 一起看:
+      // stale 涨而这里一直是 0 → 只是重传/重复; 这里涨 → 对面真的重新编过号。
+      kv("renumber_recoveries", to_str(s.renumber_recoveries)),
       kv("crc_errors", to_str(s.crc_errors)),
       // 两个丢帧计数器分开报: 一个高说明上层投太快, 另一个高说明串口发不动
       kv("frames_dropped_on_post", to_str(s.frames_dropped_on_post)),

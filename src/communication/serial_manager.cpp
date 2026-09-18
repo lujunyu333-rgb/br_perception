@@ -273,8 +273,14 @@ bool SerialManager::reconnect()
   }
 
   if (open_device()) {
-    std::lock_guard<std::mutex> lk(stats_mutex_);
-    ++stats_.reconnects_succeeded;
+    {
+      std::lock_guard<std::mutex> lk(stats_mutex_);
+      ++stats_.reconnects_succeeded;
+    }
+    // 告诉接收线程: 链路换了, 去清解码器的缓冲与序号。
+    // ⚠ 只能 bump 这个原子量 —— decoder_ 是接收线程独占的, 这里直接调它的
+    //   reset_link_state() 就是跨线程数据竞争 (见成员声明处的说明)。
+    link_generation_.fetch_add(1);
     return true;
   }
   return false;
@@ -452,8 +458,18 @@ void SerialManager::receive_loop()
   std::uint64_t seen_frames = 0;
   std::uint64_t seen_crcs = 0;
   std::uint64_t crc_run = 0;                 // 自上一好帧以来的 CRC 错误数
+  std::uint64_t seen_generation = link_generation_.load();
 
   while (running_.load()) {
+    // ── 发送线程重连过 → 清掉解码器的缓冲与序号 ──
+    // 换 fd 之后缓冲区里那些半截帧必然是垃圾 (新链路的字节从帧头重新开始),
+    // 而且对端可能已经重新编号。只清链路状态, **不清计数器** —— 保留统计的单调性。
+    const std::uint64_t generation = link_generation_.load();
+    if (generation != seen_generation) {
+      seen_generation = generation;
+      decoder_.reset_link_state();
+    }
+
     // ── 拿一份 fd 的**副本**再去做 I/O ──
     // 直接 fd_.load() 然后 poll/read 是不安全的: 发送线程重连时会 close 旧 fd,
     // 那个 fd 号**立刻进入复用池**, 可能被任何 open/dup 拿到 (本进程别的串口、
@@ -543,6 +559,11 @@ void SerialManager::receive_loop()
       stats_.bytes_received += static_cast<std::uint64_t>(n);
       stats_.frames_received = total_frames;
       stats_.crc_errors = total_crcs;
+      // 这两个也必须在这里同步 —— 它们是 decoder_ 的状态, 别处读就是数据竞争。
+      // 有它们, "字节在涨但帧不动" 才看得出是**序号丢弃**而不是链路没数据。
+      stats_.stale_frames = decoder_.stale_frames();
+      stats_.ambiguous_seq_frames = decoder_.ambiguous_seq_frames();
+      stats_.renumber_recoveries = decoder_.renumber_recoveries();
       stats_.decoder_pending_bytes = decoder_.pending_bytes();
     }
 

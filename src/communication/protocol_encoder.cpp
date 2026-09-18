@@ -20,6 +20,11 @@ void put_u8(std::vector<std::uint8_t>& out, std::uint8_t v)
   out.push_back(v);
 }
 
+void put_i8(std::vector<std::uint8_t>& out, std::int8_t v)
+{
+  put_u8(out, static_cast<std::uint8_t>(v));
+}
+
 void put_u16(std::vector<std::uint8_t>& out, std::uint16_t v)
 {
   out.push_back(static_cast<std::uint8_t>(v & 0xFFu));

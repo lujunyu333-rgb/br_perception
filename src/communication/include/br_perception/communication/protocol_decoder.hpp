@@ -48,6 +48,23 @@ constexpr std::size_t kResetPayloadBytes = 3;
 /// 已定义的 reset_zone_id 取值上限 (0 = 地面启动区, 1 = L1 重试区)
 constexpr std::uint8_t kMaxKnownResetZone = 1;
 
+/// 判定"主控重新编号了"所需的**连续递增 stale 帧**个数。
+///
+/// 背景: 任务书 §5.2 要求"帧号已更新则丢弃旧的"。但主控重启后从 0 重新编号时,
+/// 旧规则会把 0..last_seq 这**整段新帧**都当成"旧的"丢掉 —— last_seq=175 时
+/// 要白丢 176 帧 (50Hz 下约 3.5 s) 才恢复正常。
+///
+/// 区分依据 (三种"看起来旧"的帧, 只有第三种是重启):
+///   · 重复帧        → 序号**不变**, 连串里全是同一个值
+///   · 迟到的重传    → 序号**跳变**, 不与上一帧 stale 衔接
+///   · 主控重启      → 0, 1, 2, ... **逐 1 递增**, 且**从 0 开始**
+/// 所以判据同时要求"从 0 起"和"逐 1 递增"和"长度够" —— 三者都满足的误判面很小。
+///
+/// ⚠ 触发还额外要求 `last_seq_ >= 本阈值`: 否则 last_seq_ 本来就只有 2 时,
+///   0,1,2 这串会把**重复帧** 2 也"恢复"成新帧, 反而违反 §5.2。
+///   加上这一条, 恢复只在"确实能省下 ≥ 阈值 帧"时才发生。
+constexpr std::uint8_t kRenumberRunThreshold = 3;
+
 /// 一个**结构正确且 CRC 通过**的帧
 struct DecodedFrame {
   std::uint8_t seq{0};              ///< 帧序号 (0-255)
@@ -124,8 +141,21 @@ public:
   /// ⚠ 边界含 128: 该点两侧等距, 是最歧义的取值, 不是"还差一点"。
   std::uint64_t ambiguous_seq_frames() const noexcept { return ambiguous_seq_frames_; }
 
+  /// 判定"主控重新编号"并自动恢复序号状态的次数 (见 kRenumberRunThreshold)。
+  /// 非零 = 主控重启过。正常应恒为 0 —— 它不为 0 说明链路对面重新编过号,
+  /// 值得看一眼是为什么 (真重启 / 还是本判据误触)。
+  std::uint64_t renumber_recoveries() const noexcept { return renumber_recoveries_; }
+
   /// 只清零统计**计数器** (接收缓冲与序号状态保留)
   void reset_counters() noexcept;
+
+  /// 只重置**链路状态**: 接收缓冲 + 序号, 计数器原样保留。
+  ///
+  /// 用于**链路重建** (fd 被 close+reopen 之后): 缓冲区里的半截帧必然是垃圾,
+  /// 且对端可能已重新编号。与 reset() 的区别就是**不动计数器** ——
+  /// 调用方 (serial_manager) 是拿 frames_ok() 直接赋值给累计统计的,
+  /// 用 reset() 会让诊断里的 frames_received 归零, 看着像统计坏了。
+  void reset_link_state() noexcept;
 
   /// 完全重置: 计数器 + 接收缓冲 + 序号状态。
   /// 用于**链路重建 / 主控重启** —— 主控若从 0 重新编号, 不重置会让前若干帧被误判 stale。
@@ -151,6 +181,14 @@ private:
   /// 加一个"已确认无帧头的前缀"hint 即可, 不必改调用方。
   std::size_t find_header() const noexcept;
 
+  /// 只清**序号状态** (序号 + 重新编号连串), 缓冲区与计数器都不碰。
+  ///
+  /// ⚠ 与 reset_link_state() 的区别在这里: 后者会 clear() 缓冲区, 那只在
+  ///   "换 fd" 时才安全。判定"主控重新编号"是在**解析途中**发生的, 此刻缓冲区里
+  ///   还躺着本次 feed() 尚未解析的后续帧 (粘包), 清掉就把它们一起丢了 ——
+  ///   实测 20 帧一批会丢 17 帧。
+  void clear_seq_state() noexcept;
+
   ProtocolConfig config_;
   Crc16 crc_;
   std::size_t max_payload_bytes_;
@@ -161,11 +199,21 @@ private:
   std::uint8_t last_seq_{0};
   bool has_last_seq_{false};
 
+  /// 判定"主控重新编号"用的连串状态 (见 kRenumberRunThreshold 的说明)。
+  /// ⚠ 任何一帧被**接受**都要清掉 —— 这个串必须连续, 中间夹一个正常帧就不算重启。
+  struct RenumberRun {
+    std::uint8_t length{0};        ///< 当前连串长度
+    std::uint8_t last_seq{0};      ///< 连串里最后一个 stale 帧的 seq
+    bool from_zero{false};         ///< 连串是否从 seq == 0 开始
+  };
+  RenumberRun renumber_run_{};
+
   std::uint64_t frames_ok_{0};
   std::uint64_t crc_errors_{0};
   std::uint64_t garbage_bytes_{0};
   std::uint64_t stale_frames_{0};
   std::uint64_t ambiguous_seq_frames_{0};
+  std::uint64_t renumber_recoveries_{0};
 };
 
 }  // namespace communication

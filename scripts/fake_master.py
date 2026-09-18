@@ -159,10 +159,15 @@ class SeqCounter:
     """自增帧序号。"取-用-显示"用**同一个值**, 这类错位从结构上不可能再犯。
 
     (曾经在心跳分支写成先自增再 `seq - 1` 显示, 回绕时打出 seq=-1。)
+
+    ⚠ start 默认 0 = "主控刚上电"。这对**首次**联调是对的, 但重测时会坑:
+      C++ 侧丢弃"序号不新于上次"的帧, 每次重启本脚本都从 0 开始, 于是第二次
+      以后发的帧全被判重复、**静默丢弃** (bytes 在涨, frames_received 不动)。
+      重测要么重启 comm_node, 要么把 --seq-start 调到上一次之后。
     """
 
-    def __init__(self):
-        self._n = 0
+    def __init__(self, start=0):
+        self._n = start & 0xFF
 
     def take(self):
         """取下一个序号并自增 —— 返回**取到的那个值**, 不是自增后的"""
@@ -514,6 +519,11 @@ def main():
                     help='读 comm_params.yaml 的 crc16_* 参数并对照标准变体验证 (改了协议参数后跑这个)')
     ap.add_argument('--reset-after', type=int, default=0, metavar='N',
                     help='收到第 N 个感知帧后回发一次 BR_RESET')
+    ap.add_argument('--seq-start', type=int, default=0, metavar='N',
+                    help='本进程发出的第一帧的 seq (默认 0 = 主控刚上电)。'
+                         'C++ 侧会丢弃 seq 不新于上次的帧, 所以重启本脚本重测时, '
+                         '若仍从 0 开始, 复位帧会被当重复帧静默丢掉 —— '
+                         '要么重启 comm_node, 要么用这个参数跳到上一次之后')
     ap.add_argument('--reset-zone', type=int, default=RESET_ZONE_GROUND,
                     choices=KNOWN_RESET_ZONES,
                     help='BR_RESET 的 zone: 0=地面启动区 1=L1 重试区')
@@ -539,7 +549,7 @@ def main():
     log('伪下位机已启动 ({}), Ctrl-C 退出'.format(args.port or '--stdio'))
     log('默认只收不发; 回发需 --reset-after / --heartbeat-every 显式开启')
 
-    counter = SeqCounter()
+    counter = SeqCounter(args.seq_start)
     buf = b''
     n_frames = n_crc_err = n_garbage = n_reset_sent = n_hb_sent = 0
     reset_sent = False

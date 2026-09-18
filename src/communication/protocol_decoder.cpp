@@ -134,18 +134,44 @@ std::vector<DecodedFrame> ProtocolDecoder::feed(const std::uint8_t* data,
     // ⚠ 副作用 (已知且有界): 主控若重启并从 0 重新编号, 会丢掉 0..last_seq 这一小段,
     //   随后自动恢复。要主动避开, 链路重建时调 reset()。
     if (has_last_seq_ && !seq_is_newer(frame.seq, last_seq_)) {
-      ++stale_frames_;
-      // 跨度过大 → uint8 序号分不清新旧, 计数以备诊断。
-      // ⚠ 阈值是 **128** 不是 129: 差值 128 时"晚 128 帧"与"早 128 帧"等可能,
-      //   恰恰是**最歧义**的那一点。写成 129 会把它漏掉。
-      const std::uint8_t diff = static_cast<std::uint8_t>(frame.seq - last_seq_);
-      if (diff >= 128u) {
-        ++ambiguous_seq_frames_;
+      // ── 维护"疑似主控重新编号"的连串 (判据见 kRenumberRunThreshold) ──
+      // 衔接得上就延长, 否则从这一帧重新起串。
+      if (renumber_run_.length > 0 &&
+          frame.seq == static_cast<std::uint8_t>(renumber_run_.last_seq + 1)) {
+        ++renumber_run_.length;
+      } else {
+        renumber_run_.length = 1;
+        renumber_run_.from_zero = (frame.seq == 0);
       }
-      continue;
+      renumber_run_.last_seq = frame.seq;
+
+      // 三个条件同时成立才认定重新编号: 从 0 起 + 逐 1 递增够长 + 确实能省下帧数。
+      // 前两条把"重复帧连串"和"任意序号的迟到重传连串"排除掉 —— 它们仍是 stale,
+      // 满足任务书 §5.2「帧号已更新则丢弃旧的」。
+      if (renumber_run_.from_zero &&
+          renumber_run_.length >= kRenumberRunThreshold &&
+          last_seq_ >= kRenumberRunThreshold) {
+        ++renumber_recoveries_;
+        // ⚠ 这里**只能**清序号状态, 不能图省事调 reset_link_state():
+        //   那个会 clear() 缓冲区, 而此刻缓冲区里还躺着本次 feed() 尚未解析的
+        //   后续帧 (粘包时一读就是一批), 清掉会把它们一起丢掉。
+        clear_seq_state();
+        // **不 continue** —— 这一帧属于新编号, 落到下面按正常帧接受。
+      } else {
+        ++stale_frames_;
+        // 跨度过大 → uint8 序号分不清新旧, 计数以备诊断。
+        // ⚠ 阈值是 **128** 不是 129: 差值 128 时"晚 128 帧"与"早 128 帧"等可能,
+        //   恰恰是**最歧义**的那一点。写成 129 会把它漏掉。
+        const std::uint8_t diff = static_cast<std::uint8_t>(frame.seq - last_seq_);
+        if (diff >= 128u) {
+          ++ambiguous_seq_frames_;
+        }
+        continue;
+      }
     }
     last_seq_ = frame.seq;
     has_last_seq_ = true;
+    renumber_run_ = RenumberRun{};      // 任何一帧被接受都打断连串
 
     ++frames_ok_;
     out.push_back(std::move(frame));
@@ -180,14 +206,29 @@ void ProtocolDecoder::reset_counters() noexcept
   garbage_bytes_ = 0;
   stale_frames_ = 0;
   ambiguous_seq_frames_ = 0;
+  renumber_recoveries_ = 0;
+}
+
+void ProtocolDecoder::clear_seq_state() noexcept
+{
+  last_seq_ = 0;
+  has_last_seq_ = false;
+  // 连串状态也要清: 旧序号体系下攒的半个串没有意义, 留着会让新体系的
+  // 头几帧莫名其妙地凑满阈值。
+  renumber_run_ = RenumberRun{};
+}
+
+void ProtocolDecoder::reset_link_state() noexcept
+{
+  // 换 fd 了: 缓冲区里那些半截帧来自**上一条链路**, 必然是垃圾, 清掉。
+  buffer_.clear();
+  clear_seq_state();
 }
 
 void ProtocolDecoder::reset() noexcept
 {
   reset_counters();
-  buffer_.clear();
-  last_seq_ = 0;
-  has_last_seq_ = false;
+  reset_link_state();
 }
 
 }  // namespace communication

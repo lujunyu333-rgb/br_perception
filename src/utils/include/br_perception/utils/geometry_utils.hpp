@@ -174,6 +174,7 @@ double point_segment_distance(const Point3& p, const Point3& a, const Point3& b)
 /// ⚠ **小弧外推陷阱**: 若只扫到球顶一小块 (< 半球), 秩仍是 4, 本函数照样返回 true,
 ///   但球心是外推出来的, 会发散。调用方应对 rms_error 设阈值兜底 ——
 ///   穆斯蒂卡 Ø200 只看到顶部一小片时, rms 会明显高于噪声水平。
+bool fit_sphere(const std::vector<Point3>& points, Sphere& out, double* rms_error = nullptr);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // §7.1-7 / §7.1-9 坐标系快速变换与批量旋转平移
