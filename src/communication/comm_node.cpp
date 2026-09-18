@@ -28,6 +28,15 @@ diagnostic_msgs::msg::KeyValue kv(const std::string& key, const std::string& val
 
 std::string to_str(std::uint64_t v) { return std::to_string(v); }
 
+/// 16 位量按十六进制写成 "0x1021" —— 协议表上就是这么写的,
+/// 现场跟主控那边的配置比对时不该让人做十进制心算。
+std::string to_hex16(std::uint16_t v)
+{
+  char buf[8];
+  std::snprintf(buf, sizeof(buf), "0x%04X", static_cast<unsigned>(v));
+  return std::string(buf);
+}
+
 }  // namespace
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -232,6 +241,23 @@ void CommNode::publish_diagnostics()
       kv("device", serial_config_.device),
       kv("device_open", open ? "1" : "0"),
       kv("connected", connected ? "1" : "0"),
+
+      // ── 线格式参数: 两端必须逐项一致 ──
+      // 单独列在最前面, 是为了**现场比对**: 参数不一致的症状是"串口打开正常、
+      // 各项计数都正常、就是一帧都收不到", 而原来的 22 项里没有一项说明
+      // 当前用的是哪组参数 —— 只能看到 crc_errors 涨, 却不知道拿什么去对。
+      // 用法: ros2 topic echo /communication/diagnostics --once, 对着主控配置逐行核。
+      kv("serial_frame", std::to_string(serial_config_.data_bits) +
+                             std::string(1, serial_config_.parity) +
+                             std::to_string(serial_config_.stop_bits)),   // 如 "8N1"
+      kv("serial_baud_rate", to_str(static_cast<std::uint64_t>(serial_config_.baud_rate))),
+      kv("serial_flow_control", serial_config_.flow_control ? "1" : "0"),
+      kv("crc16_polynomial", to_hex16(serial_config_.protocol.crc16_polynomial)),
+      kv("crc16_initial", to_hex16(serial_config_.protocol.crc16_initial)),
+      kv("crc16_reflect_in", serial_config_.protocol.crc16_reflect_in ? "1" : "0"),
+      kv("crc16_reflect_out", serial_config_.protocol.crc16_reflect_out ? "1" : "0"),
+      kv("crc16_xor_out", to_hex16(serial_config_.protocol.crc16_xor_out)),
+
       kv("uptime_ms", to_str(s.uptime_ms)),
       kv("bytes_sent", to_str(s.bytes_sent)),
       kv("bytes_received", to_str(s.bytes_received)),
