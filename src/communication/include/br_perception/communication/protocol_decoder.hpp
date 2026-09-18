@@ -63,6 +63,13 @@ constexpr std::uint8_t kMaxKnownResetZone = 1;
 /// ⚠ 触发还额外要求 `last_seq_ >= 本阈值`: 否则 last_seq_ 本来就只有 2 时,
 ///   0,1,2 这串会把**重复帧** 2 也"恢复"成新帧, 反而违反 §5.2。
 ///   加上这一条, 恢复只在"确实能省下 ≥ 阈值 帧"时才发生。
+///
+/// ⚠ TODO(protocol-freeze): 本判据**放宽了**任务书 §5.2「帧号已更新则丢弃旧的」——
+///   它在"从 0 起 + 逐 1 递增 ≥3 帧 + last_seq_ ≥ 阈值"时把 stale 帧当新帧接受。
+///   而 `seq` 本身仍是未冻结项 (见 protocol_encoder.hpp 的 next_seq): 跨不跨
+///   PacketType 共享、是否单调递增、会不会重编号, 下位机一确认就可能推翻这里。
+///   协议冻结后**第一件事**就是重新审视它, 并同步 test_protocol_decoder.cpp 的
+///   RenumberTest。查全部未冻结项: grep -rn "TODO(protocol-freeze)" src/
 constexpr std::uint8_t kRenumberRunThreshold = 3;
 
 /// 一个**结构正确且 CRC 通过**的帧
@@ -135,10 +142,17 @@ public:
   /// 因序号不新而丢弃的帧数 —— 迟到的重传 / 重复帧
   std::uint64_t stale_frames() const noexcept { return stale_frames_; }
 
-  /// 上述 stale 帧里**序号跨度有歧义**的那部分 (差值落在 [128, 255])。
-  /// 非零 = 链路曾一次性丢过 ≥128 帧, 或主控重新编号 ——
-  /// 因为 uint8 序号分不清"200 帧之后"和"56 帧之前"。正常应恒为 0。
-  /// ⚠ 边界含 128: 该点两侧等距, 是最歧义的取值, 不是"还差一点"。
+  /// 上述 stale 帧里**不是精确重复**的那部分 (无符号差值落在 [128, 255])。
+  ///
+  /// ⚠ 读法要说准 —— 它比名字听起来宽得多:
+  ///   被丢弃的帧只有两种, 差值 0 (**重复帧**) 和差值 ∈ [128,255] (其余全部)。
+  ///   所以本计数器实际 = "**被丢掉、又不是精确重复的帧数**"。
+  ///   一次 5→3 的两帧乱序 (差值 254) 也会计入, 它**不**代表"丢了 ≥128 帧"。
+  ///
+  /// 赛场上的用法: 与 stale_frames 一起看 ——
+  ///   stale 涨、recoveries 恒 0   → 只是重传/乱序/重复, 属正常链路现象
+  ///   recoveries 涨               → 对面真的重新编过号 (主控重启/重试)
+  ///   stale 与 recoveries 都不涨 → 不是序号问题, 去看 bytes_received
   std::uint64_t ambiguous_seq_frames() const noexcept { return ambiguous_seq_frames_; }
 
   /// 判定"主控重新编号"并自动恢复序号状态的次数 (见 kRenumberRunThreshold)。
